@@ -45,7 +45,6 @@ parser.prototype.parseJson = function()
 }
 
 //parse JSON object.
-//HA! there shouldn't be cycle there is only one root JSON...
 parser.prototype.parseJsonObject = function()
 {
 	this.objectLevel++;
@@ -62,7 +61,6 @@ parser.prototype.parseJsonObject = function()
 }
 
 //Because JSON is name:value pair. Parse string, than parse value
-//
 parser.prototype.parseJsonPair = function()
 {
 	console.group("parseJsonPair");

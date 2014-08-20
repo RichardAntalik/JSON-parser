@@ -11,11 +11,11 @@
 	<br>
 	<div id="output" style="height:1em; display:inline; "></div>
 	<br>
-	<input type="button" id="format" value="Parse">
+	<input type="button" id="parse" value="Parse">
 
 	<script src="parser.js"></script>
 	<script>
-		$('#format').click(function(){
+		$('#parse').click(function(){
 			var input = $('#input').val();
 			var xx = new parser(input);
 			xx.parseJson();

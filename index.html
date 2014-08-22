@@ -7,19 +7,33 @@
 </head>
 <body>
 
-	<textarea id="input" style="width:400px; height:400px; display:inline-block;"></textarea>
+<textarea id="input" style="width:400px; height:400px; display:inline-block;"></textarea>
+<textarea id="output" style="width:400px; height:400px; display:inline-block;"></textarea>
 	<br>
 	<div id="output" style="height:1em; display:inline; "></div>
 	<br>
-	<input type="button" id="parse" value="Parse">
+<input type="button" id="parse" value="Parse">
+<input type="button" id="prettify" value="Prettify">
+<input type="button" id="minify" value="Minify">
 
 	<script src="parser.js"></script>
 	<script>
-		$('#parse').click(function(){
-			var input = $('#input').val();
-			var xx = new parser(input);
-			xx.parseJson();
-		});
+        $('#parse').click(function () {
+            var input = $('#input').val();
+            var xx = new parser(input);
+            xx.parseJson();
+        });
+        $('#minify').click(function () {
+            var input = $('#input').val();
+            var xx = new parser(input);
+            $('#output').val(xx.minify())
+        });
+        $('#prettify').click(function () {
+            var input = $('#input').val();
+            var xx = new parser(input);
+            $('#output').val(xx.prettify())
+        });
+
 	</script>
 
 </body>

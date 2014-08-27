@@ -1,40 +1,129 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-	<title>JSON parser</title>
+    <title>JSON parser</title>
     <meta http-equiv="content-type" content="text/html;charset=UTF-8">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <style>
+        ul {
+            list-style: none
+        }
+
+        #container {
+            font-family: "Courier New", Courier, monospace;
+        }
+
+        .pair {
+            display: block;
+        }
+
+        .object {
+            color: #0CC;
+        / / border : 1 px solid #AFF;
+            margin: 0px 0px 0px 20px;
+
+        }
+
+        .property {
+            color: #CC0;
+            margin: 2px, 2px, 2px, 2px;
+            padding: 0px, 2px, 0px, 2px;
+        }
+
+        .value {
+            color: #C0C;
+            padding: 20px, 20px, 20px, 20px;
+        }
+
+        .token {
+            color: #000;
+            margin: 2px, 2px, 2px, 2px;
+            padding: 0px, 2px, 0px, 2px;
+        }
+
+        .string {
+            white-space: pre-wrap;
+        }
+
+        .error {
+            background-color: #F00;
+            border: 1px solid #FAA;
+            margin: 2px, 2px, 2px, 2px;
+            padding: 0px, 2px, 0px, 2px;
+        }
+
+    </style>
 </head>
 <body>
+<div style="width: 100%; height: 610px;">
+    <textarea id="input" style="width:600px; height:800px; display:inline-block; float: left;">
+        {
+        "array": [
+        1,
+        2,
+        3
+        ],
+        "boolean": true,
+        "null": null,
+        "number": 123,
+        "object": {
+        "a": "b",
+        "c": "d",
+        "e": "f"
+        },
+        "string": "Hello World"
+        }
+    </textarea>
 
-<textarea id="input" style="width:400px; height:400px; display:inline-block;"></textarea>
-<textarea id="output" style="width:400px; height:400px; display:inline-block;"></textarea>
-	<br>
-	<div id="output" style="height:1em; display:inline; "></div>
-	<br>
-<input type="button" id="parse" value="Parse">
-<input type="button" id="prettify" value="Prettify">
-<input type="button" id="minify" value="Minify">
+    <div id="container" style="margin:0px; height:800px; width:600px; display:inline-block; float: right;">
+        <div id="err"
+             style="margin:0px; height:100px; width:600px; display:inline-block; background-color:#CCC; border: 1px solid #999">
+        </div>
+        <div id="output"
+             style="margin:0px; height:700px; width:600px; display:inline-block; border: 1px solid #999; overflow: auto;">
+        </div>
+    </div>
+</div>
 
-	<script src="parser.js"></script>
-	<script>
-        $('#parse').click(function () {
-            var input = $('#input').val();
-            var xx = new parser(input);
-            xx.parseJson();
-        });
-        $('#minify').click(function () {
-            var input = $('#input').val();
-            var xx = new parser(input);
-            $('#output').val(xx.minify())
-        });
-        $('#prettify').click(function () {
-            var input = $('#input').val();
-            var xx = new parser(input);
-            $('#output').val(xx.prettify())
-        });
+<script src="parser.js"></script>
+<script src="render.js"></script>
+<script src="data.js"></script>
+<script src="format.js"></script>
 
-	</script>
+<script>
+    $('#input').bind('input propertychange', function () {
+        var input = $('#input').val();
+        var xx = new parser(input);
+        $('#output').html(" ");
+        xx.parseJson();
+
+        var error = $('.error').attr('title');
+        if (error) {
+            $('#err').html(error.replace(/\n/g, '<br>'));
+            $('#err').css('background-color', '#F55');
+        } else {
+            $('#err').text(" ");
+            $('#err').css('background-color', '#CCC');
+
+        }
+
+    });
+
+    $(document).on('mouseenter', '.error', function () {
+        var error = $(this).attr('title');
+        $('#err').html(error.replace(/\n/g, '<br>'));
+    });
+
+    $(document).on('mouseleave', '.error', function () {
+        var error = $('.error').attr('title');
+        if (error) {
+            $('#err').html(error.replace(/\n/g, '<br>'));
+        } else {
+            $('#err').text(" ");
+        }
+    });
+
+</script>
 
 </body>
 </html>	

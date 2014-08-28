@@ -1,5 +1,6 @@
 //                                      --------[DATA METHODS]--------
 
+
 //Return next token of this.jsonString relative to this.pointer
 parser.prototype.getNextToken = function () {
 

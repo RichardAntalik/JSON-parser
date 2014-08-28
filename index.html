@@ -45,6 +45,12 @@
             white-space: pre-wrap;
         }
 
+        .dummy {
+            display: inline-block;
+            width: 3em;
+            height: 1em;
+        }
+
         .error {
             background-color: #F00;
             border: 1px solid #FAA;
@@ -55,7 +61,7 @@
     </style>
 </head>
 <body>
-<div style="width: 100%; height: 610px;">
+<div style="width: 100%; height: 810px;">
     <textarea id="input" style="width:600px; height:800px; display:inline-block; float: left;">
         {
         "array": [
@@ -84,18 +90,22 @@
         </div>
     </div>
 </div>
-
+<div style="width: 100%">
+    <input type="button" id="parse" value="parse"/>
+</div>
 <script src="parser.js"></script>
 <script src="render.js"></script>
 <script src="data.js"></script>
 <script src="format.js"></script>
 
+
 <script>
-    $('#input').bind('input propertychange', function () {
+    $('#parse').click(function () {
         var input = $('#input').val();
         var xx = new parser(input);
         $('#output').html(" ");
         xx.parseJson();
+        $('#output').html(xx.html);
 
         var error = $('.error').attr('title');
         if (error) {
@@ -104,10 +114,26 @@
         } else {
             $('#err').text(" ");
             $('#err').css('background-color', '#CCC');
-
         }
-
     });
+
+    /*    $('#input').bind('input propertychange', function () {
+     var input = $('#input').val();
+     var xx = new parser(input);
+     $('#output').html(" ");
+     xx.parseJson();
+
+     var error = $('.error').attr('title');
+     if (error) {
+     $('#err').html(error.replace(/\n/g, '<br>'));
+     $('#err').css('background-color', '#F55');
+     } else {
+     $('#err').text(" ");
+     $('#err').css('background-color', '#CCC');
+
+     }
+
+     });*/
 
     $(document).on('mouseenter', '.error', function () {
         var error = $(this).attr('title');

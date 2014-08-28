@@ -1,46 +1,68 @@
 //                                  --------[RENDERING METHODS]--------
 
-parser.prototype.renderObject = function (level) {      //level not needed now
-    this.html += '<span class="objectStart">{</span><ul class="object level' + level + '">';
+parser.prototype.renderObject = function (level) {
+    console.log('rendering object', level);
+    if (level === 1) {
+        $('#output').append('<span class="objectStart">{</span><ul class="object level' + level + '"></ul>');
+    } else {
+        $('li').last().append('<span class="objectStart">{</span>');
+        $('.level' + (level - 1)).append('<ul class="object level' + level + '"></ul>');
+    }
 };
 
-parser.prototype.renderObjectEnd = function (style, title) {
-    this.html += '</ul><span title="' + title + '" class="objectEnd ' + style + '">}</span>';
+parser.prototype.renderObjectEnd = function (level) {
+    console.log('rendering object', level);
+    $('.level' + level).last().after('<span class="objectEnd">}</span>');
 };
 
 parser.prototype.renderArray = function (level) {
-    this.html += '<span class="arrayStart">[</span><ol class="array level' + level + '">';
+    console.log('rendering object', level);
+    if (level === 1) {
+        $('#output').append('<span class="arrayStart">[</span><ol start="0" class="array level' + level + '"></ol>');
+    } else {
+        $('li').last().append('<span class="arrayStart">[</span>');
+        $('.level' + (level - 1)).last().append('<ol start="0" class="object level' + level + '"></ol>');
+    }
 };
 
-parser.prototype.renderArrayEnd = function (style, title) {
-    this.html += '</ol><span title="' + title + '" class="arrayEnd ' + style + '">]</span>';
+parser.prototype.renderArrayEnd = function (level) {
+    console.log('rendering object', level);
+    $('.level' + level).last().after('<span class="arrayEnd">]</span>');
 };
 
-parser.prototype.renderDummyToken = function () {
-//    this.html += '<span class="End dummy"></span>';
+
+parser.prototype.renderNewItem = function (level) {
+    $('.level' + level).last().append('<li class=""></li>');
 };
 
-parser.prototype.renderNewItem = function () {
-    this.html += '<li>';
-};
-parser.prototype.renderEndItem = function () {
-    this.html += '</li>';
+parser.prototype.renderContent = function (value) {
+    $('li > span').last().append('<span>' + value + '</span>');
 };
 
-parser.prototype.renderName = function () {
-    this.html += '<span class="property">';
+parser.prototype.renderSetError = function (text, elementStyle) {
+    if (elementStyle) {
+        $('.' + elementStyle).last().addClass('error');
+        $('.' + elementStyle).last().attr('title', text);
+    } else {
+        $('li > span > span').last().addClass('error');
+        $('li > span > span').last().attr('title', text);
+    }
 };
-parser.prototype.renderEndName = function () {
-    this.html += '</span>';
+parser.prototype.renderSetType = function (type) {
+    $('li > span > span').last().addClass(type);
 };
-parser.prototype.renderValue = function () {
-    this.html += '<span class="value">';
+parser.prototype.renderNewName = function (level) {
+    $('.level' + level).last().append('<li><span class="property"></span></li>');
+};
+parser.prototype.renderNewValue = function () {
+    $('li').last().append('<span class="value"></span>');
+};
+parser.prototype.renderToken = function (token) {
+    $('span').last().after('<span class="token">' + token + '</span>');
+};
+parser.prototype.renderMissedToken = function () {
+
 };
 
-parser.prototype.renderEndValue = function () {
-    this.html += '</span>';
-};
 
-parser.prototype.renderContent = function (value, styles, title) {
-    this.html += '<span title="' + title + '" class="' + styles + '">' + value + '</span>';
-};
+

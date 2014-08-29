@@ -1,15 +1,13 @@
 /*
- * JSON parser. Parses string char by char
- * Maybe I should make it as a string method...
+ * Known bugs:
+ * Missing closing brackets are always rendered after parsing is done.
+ * They could be rendered BEFORE their parrent is parsed.
  *
- * Important note: I'm not very happy with this char by char method.
- * The reason is, that pointer have to be moved with caution.
- * This is because number, true, false and null values don't have any wrapping elements,
- * that string, array and object do.
- * So the string parser expects the pointer to be at '"' '{"string": ***}' ,
- * but the number parser expects pointer to be before an actual number.
- *
- * Also termination of non-wrapped value is a control token for its parent parser method.
+ * Need to add if to render title tooltip.
+ */
+
+/*
+ TODO: line counter, render invalid after json
  */
 
 "use strict";
@@ -17,67 +15,68 @@
 String.prototype.repeat = function (num) {
     return new Array(num + 1).join(this);
 };
-
+/**
+ * @constructor
+ * @param {string} jsonString
+ */
 function parser(jsonString) {
-
     this.jsonString = jsonString;
-    this.length = jsonString.length;
-    this.pointer = 0;
-
-    this.token = "";
-    this.indentLevel = 0;
-
-    this.level = 0;
     this.html = "";
-}
+    this.length = jsonString.length;
 
-//This function should be called to start parsing
+    this.pointer = 0;
+    this.token = "";
+}
+/**
+ * Check What type JSON is, call parseJsonObject or parseJsonArray
+ */
 parser.prototype.parseJson = function () {
     console.clear();
     console.log("Starting parser...");
 
     this.pointer = 0;
 
-    while (this.pointer <= this.length) {
-        this.getNextToken();
-        if (this.token === '{') {
-            this.parseJsonObject();
-        }
-        if (this.token === '[') {
-            this.parseJsonArray();
-        }           // else error...
+    this.getNextToken();
+    if (this.token === '{') {
+        this.parseJsonObject();
+    } else if (this.token === '[') {
+        this.parseJsonArray();
+    } else {
+        this.renderContent(this.jsonString, 'error', this.errorExpected('{ or ['));
     }
 };
-
+/**
+ * If object is not empty call parseJsonPair, check object ending.
+ * Render object container.
+ */
 parser.prototype.parseJsonObject = function () {
-    this.level++;
     console.group("parseJsonObject");
-    console.log("Parsing JSON object Level " + this.level + " @ " + this.pointer);
+    console.log("Parsing JSON object @ " + this.pointer);
 
-    this.renderObject(this.level);
+    this.renderObject();
     while (this.getNextToken() !== '}' && this.pointer <= this.length) {
         this.parseJsonPair();
     }
-
     if (this.token === '}' && this.getPrevToken() === ',') {
         this.renderObjectEnd('error', this.errorExpected('Next pair', '}', 'objectEnd'));
         this.getNextToken();
     } else if (this.getNextToken() === '}') {
         this.renderObjectEnd();
     } else {
-        this.errorExpected('}', '', 'dummy');       //dummy
+        this.renderObjectEnd('error', this.errorExpected('}', 'EOF'));
     }
 
     console.log("Ended parsing JSON object");
     console.groupEnd();
-    this.level--;
 };
-
+/**
+ * Parse name, check ':', parse value, check ',' or '}'.
+ * Render name and value container. Render ':',',' tokens.
+ */
 parser.prototype.parseJsonPair = function () {
     console.group("parseJsonPair");
     console.log("Parsing JSON pair @ " + this.pointer);
 
-    //  if (this.token === '"') {
     this.pointer--;
     this.renderNewItem();
     this.renderName();
@@ -98,19 +97,21 @@ parser.prototype.parseJsonPair = function () {
     this.getNextToken();
 
     if (this.token !== ',' && this.token !== '}') {
-        this.renderContent(this.token, 'token error', this.errorExpected(', or }', this.token))
+        this.renderContent(this.token, 'token error', this.errorExpected(', or }', this.token));
     } else if (this.token === ',') {
         this.renderContent(this.token, 'token');
+    } else if (this.token === '}') {
+        this.pointer--;
     }
     this.renderEndItem();
 
-    if (this.token === '}') {
-        this.pointer--;
-    }
     console.groupEnd();
 };
+/**
+ * If array is not empty call parseJsonValue, check array ending.
+ * Render array container. Render value container. Render ',' token
+ */
 parser.prototype.parseJsonArray = function () {
-    this.level++;
     console.group("parseJsonArray");
     console.log("Parsing JSON array Level " + this.level + " @ " + this.pointer);
 
@@ -122,6 +123,7 @@ parser.prototype.parseJsonArray = function () {
         this.renderValue();
         this.parseJsonValue();
         this.renderEndValue();
+        this.renderEndItem();
 
         this.getNextToken();
         if (this.token === ']') {
@@ -129,27 +131,25 @@ parser.prototype.parseJsonArray = function () {
         } else if (this.token === ',') {
             this.renderContent(this.token, 'token');
         } else {
-            this.renderToken(this.token, 'token error', this.errorExpected(', or ]'));
+            this.renderContent(this.token, 'token error', this.errorExpected(', or ]'));
         }
     }
-    if (this.token === ']') {
-        this.getPrevToken();
-        if (this.token === ',') {
-            this.renderArrayEnd('error', this.errorExpected('Next item', ']', 'arrayEnd'));
-        } else {
-            this.renderArrayEnd();
-        }
+    if (this.token === ']' && this.getPrevToken() === ',') {
+        this.renderArrayEnd('error', this.errorExpected('Next value', ']', 'arrayEnd'));
         this.getNextToken();
+    } else if (this.getNextToken() === ']') {
+        this.renderArrayEnd();
     } else {
-        this.renderDummyToken(this.level);
-        this.errorExpected(']', ' ', 'dummy');
+        this.renderArrayEnd('error', this.errorExpected(']', 'EOF'));
     }
 
     console.groupEnd();
     this.level--;
 };
-
-
+/**
+ * Check value type. According to type call parseJsonString or parseJsonArray or parseJsonObject.
+ * Otherwise parse and render value
+ */
 parser.prototype.parseJsonValue = function () {
     console.group("parseJsonValue");
     console.log("Parsing JSON value @ " + this.pointer);
@@ -197,16 +197,18 @@ parser.prototype.parseJsonValue = function () {
             } else {
                 this.renderContent(value, type);
             }
-
-
             break;
     }
     console.groupEnd();
-
-    //  return [value, type, error];
 };
+/**
+ * Parse and render string.
+ * @param string
+ * @param jsonPointer
+ */
 
-//Add expected no more chars in case of missed ". Add errexpctd parameter for error offset report
+//add relative pointer ref.
+
 parser.prototype.parseJsonString = function (string, jsonPointer) {
     console.group("parseJsonString");
     console.log("Parsing JSON string @ ", jsonPointer);
@@ -218,7 +220,7 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
         quotesfound = 0,
         char = "";
 
-    //look if it is valid string from beginning
+    //look if string is valid from beginning
     while (string.charAt(pointer) !== '"' && pointer <= string.length) {
         substring += string.charAt(pointer);
         pointer++;
@@ -258,7 +260,7 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
                     console.log('testing hex:', hexnumber);
                     if (!pattern.test(hexnumber)) {
                         this.renderContent(substring, 'string');
-                        this.renderContent(hexnumber, error, this.errorExpected('uHEX NUMBER', hexnumber));
+                        this.renderContent(hexnumber, 'error', this.errorExpected('uHEX NUMBER', hexnumber));
                         substring = "";
                     } else {
                         substring += hexnumber;
@@ -297,10 +299,13 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
 
     console.groupEnd();
 };
-
-//show expected error message
+/**
+ * Print error message to console.
+ * @param expected
+ * @param got
+ * @returns {string} Formatted error message.
+ */
 parser.prototype.errorExpected = function (expected, got) {
-    //alert("Error: expected " + expected + " got " + this.token);
     var text;
     if (got) {
         text = "Error: Expected " + expected + ' \nGot: ' + got + '\n@ ' + this.pointer;

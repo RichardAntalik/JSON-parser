@@ -1,7 +1,8 @@
 //                                      --------[DATA METHODS]--------
-
-
-//Return next token of this.jsonString relative to this.pointer
+/**
+ *
+ * @returns {string} Return next token of this.jsonString relative to this.pointer
+ */
 parser.prototype.getNextToken = function () {
 
     this.token = this.jsonString.charAt(this.pointer);
@@ -12,7 +13,10 @@ parser.prototype.getNextToken = function () {
     this.pointer++;
     return this.token;
 };
-
+/**
+ *
+ * @returns {string} Return previous token of this.jsonString relative to this.pointer
+ */
 parser.prototype.getPrevToken = function () {
 
     this.pointer = this.pointer - 2;
@@ -25,7 +29,13 @@ parser.prototype.getPrevToken = function () {
     this.pointer++;
     return this.token;
 };
-
+/**
+ * Extract value from tjis.jsonString.
+ * Read from this.pointer to common ending tokens, newline.
+ * Strings are extracted properly thanks to magical condition
+ *
+ * @returns {string} extracted value
+ */
 parser.prototype.getJsonValue = function () {
     console.group("getJsonValue");
 
@@ -35,12 +45,11 @@ parser.prototype.getJsonValue = function () {
         isInString = 0;
 
     char = this.jsonString.charAt(this.pointer);
-// Here comes the magic...
-    while (((char !== ',' && char !== ':' && char !== ']' && char !== '}' && char !== '\n') || isInString === 1) && this.pointer <= this.length) {
-//    while (((char !== ',' && char !== ':' && char !== ']' && char !== '}' && char !== '\n' && isInString < 2)) && this.pointer <= this.length) {
+// Here comes the magic... \" is not token \\" is
+    while ((isInString === 1 || (char !== ',' && char !== ':' && char !== ']' && char !== '}' && char !== '\n')) && this.pointer <= this.length) {
         if ((char === '"' && this.jsonString.charAt(this.pointer - 1) !== '\\') ||
             (char === '"' && this.jsonString.charAt(this.pointer - 1) === '\\' && this.jsonString.charAt(this.pointer - 2) === '\\')) {
-            isInString++;       //fool me once...
+            isInString++;
         }
         this.pointer++;
         char = this.jsonString.charAt(this.pointer);

@@ -1,3 +1,6 @@
+/**
+ * @returns {string} prettified string of this.jsonString
+ */
 parser.prototype.prettify = function () {
     var char = "",
         prettified = "",
@@ -44,7 +47,9 @@ parser.prototype.prettify = function () {
     }
     return prettified;
 };
-
+/**
+ * @returns {string} minified string of this.jsonString
+ */
 parser.prototype.minify = function () {
     var minified = "";
 

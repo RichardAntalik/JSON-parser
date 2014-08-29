@@ -100,12 +100,28 @@
 
 
 <script>
-    $('#parse').click(function () {
+    /*   $('#parse').click(function () {
+     var input = $('#input').val();
+     var xx = new parser(input);
+     $('#output').html(" ");
+     xx.parseJson();
+     $('#output').html(xx.html);*/
+    $('#input').bind('input propertychange', function () {
         var input = $('#input').val();
         var xx = new parser(input);
         $('#output').html(" ");
         xx.parseJson();
         $('#output').html(xx.html);
+
+
+        var error = $('.error').attr('title');
+        if (error) {
+            $('#err').html(error.replace(/\n/g, '<br>'));
+            $('#err').css('background-color', '#F55');
+        } else {
+            $('#err').text(" ");
+            $('#err').css('background-color', '#CCC');
+        }
 
         var error = $('.error').attr('title');
         if (error) {
@@ -117,37 +133,19 @@
         }
     });
 
-    /*    $('#input').bind('input propertychange', function () {
-     var input = $('#input').val();
-     var xx = new parser(input);
-     $('#output').html(" ");
-     xx.parseJson();
-
-     var error = $('.error').attr('title');
-     if (error) {
-     $('#err').html(error.replace(/\n/g, '<br>'));
-     $('#err').css('background-color', '#F55');
-     } else {
-     $('#err').text(" ");
-     $('#err').css('background-color', '#CCC');
-
-     }
-
-     });*/
-
     $(document).on('mouseenter', '.error', function () {
         var error = $(this).attr('title');
         $('#err').html(error.replace(/\n/g, '<br>'));
     });
 
-    $(document).on('mouseleave', '.error', function () {
-        var error = $('.error').attr('title');
-        if (error) {
-            $('#err').html(error.replace(/\n/g, '<br>'));
-        } else {
-            $('#err').text(" ");
-        }
-    });
+    /*    $(document).on('mouseleave', '.error', function () {
+     var error = $('.error').attr('title');
+     if (error) {
+     $('#err').html(error.replace(/\n/g, '<br>'));
+     } else {
+     $('#err').text(" ");
+     }
+     });*/
 
 </script>
 

@@ -1,18 +1,24 @@
 //                                  --------[RENDERING METHODS]--------
 
 parser.prototype.renderObject = function () {      //level not needed now
-    this.html += '<span class="objectStart">{</span><ul class="object">';
+    this.html += '<span class="object Start">{</span><span class="toogle">-</span><ul class="">';
 };
 
 parser.prototype.renderObjectEnd = function (style, title) {
+    if (!title) {
+        title = '';
+    }
     this.html += '</ul><span title="' + title + '" class="objectEnd ' + style + '">}</span>';
 };
 
 parser.prototype.renderArray = function () {
-    this.html += '<span class="arrayStart">[</span><ol class="array">';
+    this.html += '<span class="array Start">[</span><span class="toogle">-</span><ol class="">';
 };
 
 parser.prototype.renderArrayEnd = function (style, title) {
+    if (!title) {
+        title = '';
+    }
     this.html += '</ol><span title="' + title + '" class="arrayEnd ' + style + '">]</span>';
 };
 
@@ -38,5 +44,8 @@ parser.prototype.renderEndValue = function () {
 };
 
 parser.prototype.renderContent = function (value, styles, title) {
+    if (!title) {
+        title = '';
+    }
     this.html += '<span title="' + title + '" class="' + styles + '">' + value + '</span>';
 };

@@ -1,19 +1,14 @@
 /*
  * Known bugs:
- * Missing closing brackets are always rendered after parsing is done.
- * They could be rendered BEFORE their parrent is parsed.
+ * Escape error strings
  *
- * Need to add if to render title tooltip.
  */
 
 /*
  TODO: line counter, render invalid after json
  */
-
-"use strict";
-
-String.prototype.repeat = function (num) {
-    return new Array(num + 1).join(this);
+function repeatString  (string, num) {
+    return new Array(num + 1).join(string);
 };
 /**
  * @constructor
@@ -123,7 +118,7 @@ parser.prototype.parseJsonArray = function () {
         this.renderValue();
         this.parseJsonValue();
         this.renderEndValue();
-        this.renderEndItem();
+
 
         this.getNextToken();
         if (this.token === ']') {
@@ -133,6 +128,7 @@ parser.prototype.parseJsonArray = function () {
         } else {
             this.renderContent(this.token, 'token error', this.errorExpected(', or ]'));
         }
+        this.renderEndItem();
     }
     if (this.token === ']' && this.getPrevToken() === ',') {
         this.renderArrayEnd('error', this.errorExpected('Next value', ']', 'arrayEnd'));
@@ -176,10 +172,10 @@ parser.prototype.parseJsonValue = function () {
             value = this.getJsonValue();
             switch (value) {
                 case "true":
-                    type = "true";
+                    type = "bool";
                     break;
                 case 'false':
-                    type = "false";
+                    type = "bool";
                     break;
                 case 'null':
                     type = "null";
@@ -218,7 +214,7 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
         pointer = 0,
         substring = "",
         quotesfound = 0,
-        char = "";
+        character = "";
 
     //look if string is valid from beginning
     while (string.charAt(pointer) !== '"' && pointer <= string.length) {
@@ -234,11 +230,11 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
     pointer--;
     //read string to second quotes
     while (quotesfound < 2 && pointer <= string.length) {
-        if (char === '\\') {
+        if (character === '\\') {
             pointer++;
-            char = string.charAt(pointer);
-            substring += char;
-            switch (char) {
+            character = string.charAt(pointer);
+            substring += character;
+            switch (character) {
                 case '"':
                     break;
                 case '\\':
@@ -270,7 +266,7 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
                 default:
                     substring = substring.substring(0, substring.length - 1);
                     this.renderContent(substring, 'string');
-                    this.renderContent(char, 'error', this.errorExpected(' &#34; \\ / b f n r t uHEX NUMBER', char));
+                    this.renderContent(character, 'error', this.errorExpected(' &#34; \\ / b f n r t uHEX NUMBER', character));
                     substring = "";
                     break;
             }
@@ -278,11 +274,11 @@ parser.prototype.parseJsonString = function (string, jsonPointer) {
         }
         pointer++;
 
-        char = string.charAt(pointer);
-        if (char === '"') {
+        character = string.charAt(pointer);
+        if (character === '"') {
             quotesfound++;
         }
-        substring += char;
+        substring += character;
     }
     this.renderContent(substring, 'string');
     substring = "";

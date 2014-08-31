@@ -13,32 +13,20 @@
             font-family: "Courier New", Courier, monospace;
         }
 
-        .pair {
-            display: block;
-        }
-
         .object {
             color: #0CC;
-        / / border : 1 px solid #AFF;
-            margin: 0px 0px 0px 20px;
-
         }
 
         .property {
-            color: #CC0;
-            margin: 2px, 2px, 2px, 2px;
-            padding: 0px, 2px, 0px, 2px;
+            color: #000;
         }
 
         .value {
             color: #C0C;
-            padding: 20px, 20px, 20px, 20px;
         }
 
         .token {
             color: #000;
-            margin: 2px, 2px, 2px, 2px;
-            padding: 0px, 2px, 0px, 2px;
         }
 
         .string {
@@ -54,10 +42,35 @@
         .error {
             background-color: #F00;
             border: 1px solid #FAA;
-            margin: 2px, 2px, 2px, 2px;
-            padding: 0px, 2px, 0px, 2px;
         }
 
+        .property .string::before {
+            content: "";
+        }
+
+        .string::before {
+            content: "string ";
+        }
+
+        .null::before {
+            content: "null ";
+        }
+
+        .number::before {
+            content: "number ";
+        }
+
+        .bool::before {
+            content: "boolean ";
+        }
+
+        .object::before {
+            content: "object ";
+        }
+
+        .array::before {
+            content: "array ";
+        }
     </style>
 </head>
 <body>
@@ -91,7 +104,6 @@
     </div>
 </div>
 <div style="width: 100%">
-    <input type="button" id="parse" value="parse"/>
 </div>
 <script src="parser.js"></script>
 <script src="render.js"></script>
@@ -100,28 +112,22 @@
 
 
 <script>
-    /*   $('#parse').click(function () {
-     var input = $('#input').val();
-     var xx = new parser(input);
-     $('#output').html(" ");
-     xx.parseJson();
-     $('#output').html(xx.html);*/
-    $('#input').bind('input propertychange', function () {
+
+    $(document).ready(function () {
         var input = $('#input').val();
         var xx = new parser(input);
         $('#output').html(" ");
         xx.parseJson();
         $('#output').html(xx.html);
 
+    });
 
-        var error = $('.error').attr('title');
-        if (error) {
-            $('#err').html(error.replace(/\n/g, '<br>'));
-            $('#err').css('background-color', '#F55');
-        } else {
-            $('#err').text(" ");
-            $('#err').css('background-color', '#CCC');
-        }
+    $('#input').bind('input propertychange', function () {
+        var input = $('#input').val();
+        var xx = new parser(input);
+        $('#output').html(" ");
+        xx.parseJson();
+        $('#output').html(xx.html);
 
         var error = $('.error').attr('title');
         if (error) {
@@ -138,6 +144,19 @@
         $('#err').html(error.replace(/\n/g, '<br>'));
     });
 
+    $(document).on('click', '.toogle', function (e) {
+        e.preventDefault();
+        if ($(this).text() === '-') {
+            $(this).text('+');
+            $(this).next().css('display', 'none');
+        } else {
+            $(this).text('-');
+            $(this).next().css('display', 'block');
+        }
+    });
+
+
+    //  $('#err').html(error.replace(/\n/g, '<br>'));
     /*    $(document).on('mouseleave', '.error', function () {
      var error = $('.error').attr('title');
      if (error) {
@@ -148,6 +167,7 @@
      });*/
 
 </script>
+
 
 </body>
 </html>	

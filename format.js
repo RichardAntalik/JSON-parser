@@ -2,7 +2,7 @@
  * @returns {string} prettified string of this.jsonString
  */
 parser.prototype.prettify = function () {
-    var char = "",
+    var character = "",
         prettified = "",
         indent = 0,
         indentChar = "  ";
@@ -11,8 +11,8 @@ parser.prototype.prettify = function () {
     this.pointer = 0;
 
     while (this.pointer <= this.length) {
-        char = this.jsonString.charAt(this.pointer);
-        switch (char) {
+        character = this.jsonString.charAt(this.pointer);
+        switch (character) {
             case '"':
                 prettified += this.getJsonValue();
                 this.pointer--;
@@ -22,25 +22,25 @@ parser.prototype.prettify = function () {
                 break;
             case '{':
                 indent++;
-                prettified += "{\n" + indentChar.repeat(indent);
+                prettified += "{\n" + repeatString(indentChar, indent);
                 break;
             case '[':
                 indent++;
-                prettified += "[\n" + indentChar.repeat(indent);
+                prettified += "[\n" + repeatString(indentChar, indent);
                 break;
             case ',':
-                prettified += ",\n" + indentChar.repeat(indent);
+                prettified += ",\n" + repeatString(indentChar, indent);
                 break;
             case '}':
                 indent--;
-                prettified += "\n" + indentChar.repeat(indent) + "}";
+                prettified += "\n" + repeatString(indentChar, indent) + "}";
                 break;
             case ']':
                 indent--;
-                prettified += "\n" + indentChar.repeat(indent) + "]";
+                prettified += "\n" + repeatString(indentChar, indent) + "]";
                 break;
             default:
-                prettified += char;
+                prettified += character;
                 break;
         }
         this.pointer++;

@@ -41,18 +41,18 @@ parser.prototype.getJsonValue = function () {
 
     var start = this.pointer,
         string = "",
-        char = '',
+        character = '',
         isInString = 0;
 
-    char = this.jsonString.charAt(this.pointer);
+    character = this.jsonString.charAt(this.pointer);
 // Here comes the magic... \" is not token \\" is
-    while ((isInString === 1 || (char !== ',' && char !== ':' && char !== ']' && char !== '}' && char !== '\n')) && this.pointer <= this.length) {
-        if ((char === '"' && this.jsonString.charAt(this.pointer - 1) !== '\\') ||
-            (char === '"' && this.jsonString.charAt(this.pointer - 1) === '\\' && this.jsonString.charAt(this.pointer - 2) === '\\')) {
+    while ((isInString === 1 || (character !== ',' && character !== ':' && character !== ']' && character !== '}' && character !== '\n')) && this.pointer <= this.length) {
+        if ((character === '"' && this.jsonString.charAt(this.pointer - 1) !== '\\') ||
+            (character === '"' && this.jsonString.charAt(this.pointer - 1) === '\\' && this.jsonString.charAt(this.pointer - 2) === '\\')) {
             isInString++;
         }
         this.pointer++;
-        char = this.jsonString.charAt(this.pointer);
+        character = this.jsonString.charAt(this.pointer);
     }
     string = this.jsonString.substring(start, this.pointer);
     if (start === this.pointer) {

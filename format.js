@@ -1,7 +1,7 @@
 /**
  * @returns {string} prettified string of this.jsonString
  */
-parser.prototype.prettify = function () {
+Parser.prototype.prettify = function () {
     var character = "",
         prettified = "",
         indent = 0,
@@ -50,7 +50,7 @@ parser.prototype.prettify = function () {
 /**
  * @returns {string} minified string of this.jsonString
  */
-parser.prototype.minify = function () {
+Parser.prototype.minify = function () {
     var minified = "";
 
     this.pointer = 0;

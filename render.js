@@ -1,51 +1,63 @@
-//                                  --------[RENDERING METHODS]--------
+var Viewer = function () {
+    "use strict";
 
-parser.prototype.renderObject = function () {      //level not needed now
-    this.html += '<span class="object Start">{</span><span class="toogle">-</span><ul class="">';
-};
+    var Viewer = function () {
+        this.html = [];
+    };
 
-parser.prototype.renderObjectEnd = function (style, title) {
-    if (!title) {
-        title = '';
-    }
-    this.html += '</ul><span title="' + title + '" class="objectEnd ' + style + '">}</span>';
-};
+    Viewer.prototype.render = function (jsonImage) {
 
-parser.prototype.renderArray = function () {
-    this.html += '<span class="array Start">[</span><span class="toogle">-</span><ol class="">';
-};
+        if (Array.isArray(jsonImage)) {
+            this.renderArray(jsonImage);
+        } else {
+            this.renderObject(jsonImage);
+        }
+        console.groupEnd('Viewer');
+    };
 
-parser.prototype.renderArrayEnd = function (style, title) {
-    if (!title) {
-        title = '';
-    }
-    this.html += '</ol><span title="' + title + '" class="arrayEnd ' + style + '">]</span>';
-};
+    Viewer.prototype.renderObject = function (content) {
+        this.html.push('<span class="object start">{</span><span class="toogle">-</span><ul class="">');
 
-parser.prototype.renderNewItem = function () {
-    this.html += '<li>';
-};
-parser.prototype.renderEndItem = function () {
-    this.html += '</li>';
-};
+        for (var i = 0; i < content.content.length; i++) {
+            this.renderPair(content.content[i]);
+        }
 
-parser.prototype.renderName = function () {
-    this.html += '<span class="property">';
-};
-parser.prototype.renderEndName = function () {
-    this.html += '</span>';
-};
-parser.prototype.renderValue = function () {
-    this.html += '<span class="value">';
-};
+        this.html.push('</ul><span class="objectEnd">}</span>');
+    };
 
-parser.prototype.renderEndValue = function () {
-    this.html += '</span>';
-};
+    Viewer.prototype.renderArray = function (content) {
+        this.html.push('<span class="array start">[</span><span class="toogle">-</span><ol class="">');
 
-parser.prototype.renderContent = function (value, styles, title) {
-    if (!title) {
-        title = '';
-    }
-    this.html += '<span title="' + title + '" class="' + styles + '">' + value + '</span>';
-};
+        for (var i = 0; i < content.length; i++) {
+            this.html.push('<li>');
+            this.renderValue(content[i]);
+            this.html.push('</li>');
+        }
+
+        this.html.push('</ol><span class="arrayEnd">]</span>');
+    };
+
+    Viewer.prototype.renderPair = function (pair) {
+
+
+        this.html.push('<li>');
+        this.html.push('<span class="property">' + pair.name + ': </span>');
+
+        this.renderValue(pair.value);
+        this.html.push('</li>');
+    };
+
+    Viewer.prototype.renderValue = function (value) {
+        if (typeof value !== "object") {
+            this.html.push('<span class="value ' + typeof value + '">' + value + '</span>');
+        } else if (Array.isArray(value)) {
+            this.renderArray(value);
+        } else if (value === null) {
+            this.html.push('<span class="value null">' + value + '</span>');
+        } else {
+            this.renderObject(value);
+        }
+    };
+    return Viewer;
+
+}();

@@ -3,30 +3,27 @@
  *
  * @returns {string} Return next token of this.jsonString relative to this.pointer
  */
-parser.prototype.getNextToken = function () {
 
-    this.token = this.jsonString.charAt(this.pointer);
-    while (this.token === ' ' || this.token === '\t' || this.token === '\n') {
+Parser.prototype.getNextToken = function () {
+
+    do {
         this.pointer++;
         this.token = this.jsonString.charAt(this.pointer);
     }
-    this.pointer++;
+    while (this.token === ' ' || this.token === '\t' || this.token === '\n');
     return this.token;
 };
 /**
  *
  * @returns {string} Return previous token of this.jsonString relative to this.pointer
  */
-parser.prototype.getPrevToken = function () {
+Parser.prototype.getPrevToken = function () {
 
-    this.pointer = this.pointer - 2;
-
-    this.token = this.jsonString.charAt(this.pointer);
-    while (this.token === ' ' || this.token === '\t' || this.token === '\n') {
+    do {
         this.pointer--;
         this.token = this.jsonString.charAt(this.pointer);
     }
-    this.pointer++;
+    while (this.token === ' ' || this.token === '\t' || this.token === '\n');
     return this.token;
 };
 /**
@@ -36,7 +33,7 @@ parser.prototype.getPrevToken = function () {
  *
  * @returns {string} extracted value
  */
-parser.prototype.getJsonValue = function () {
+Parser.prototype.getJsonValue = function () {
     console.group("getJsonValue");
 
     var start = this.pointer,
@@ -45,7 +42,7 @@ parser.prototype.getJsonValue = function () {
         isInString = 0;
 
     character = this.jsonString.charAt(this.pointer);
-// Here comes the magic... \" is not token \\" is
+// Here comes the magic... \" is not token \\\\\" is
     while ((isInString === 1 || (character !== ',' && character !== ':' && character !== ']' && character !== '}' && character !== '\n')) && this.pointer <= this.length) {
         if ((character === '"' && this.jsonString.charAt(this.pointer - 1) !== '\\') ||
             (character === '"' && this.jsonString.charAt(this.pointer - 1) === '\\' && this.jsonString.charAt(this.pointer - 2) === '\\')) {
@@ -59,7 +56,9 @@ parser.prototype.getJsonValue = function () {
         string = this.jsonString.charAt(this.pointer);
         this.pointer++;
     }
+    this.pointer--;
     console.log(string, isInString);
     console.groupEnd();
     return string;
 };
+

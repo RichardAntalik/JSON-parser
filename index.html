@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>JSON parser</title>
+    <title>JSON Parser</title>
     <meta http-equiv="content-type" content="text/html;charset=UTF-8">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <style>
@@ -13,62 +13,69 @@
             font-family: "Courier New", Courier, monospace;
         }
 
-        .object {
-            color: #0CC;
+        .jsonParser {
+            margin: 0px;
+            height: 700px;
+            width: 600px;
+            display: inline-block;
+            border: 1px solid #999;
+            overflow: auto;
         }
 
-        .property {
-            color: #000;
+        .jsonParser .object {
+            color: #3BA10A;
         }
 
-        .value {
-            color: #C0C;
+        .jsonParser .property {
+            color: #084B5E;
         }
 
-        .token {
-            color: #000;
-        }
-
-        .string {
+        .jsonParser .string {
+            color: #2F8207;
             white-space: pre-wrap;
         }
 
-        .dummy {
-            display: inline-block;
-            width: 3em;
-            height: 1em;
-        }
+        .jsonParser .array {
+            color: #975008;
 
-        .error {
-            background-color: #F00;
-            border: 1px solid #FAA;
         }
+        .jsonParser .boolean {
+            color: #EB7802;
 
-        .property .string::before {
+        }
+        .jsonParser .number {
+            color: #067392;
+
+        }
+        .jsonParser .null {
+            color: #DA012C;
+
+        }
+        .jsonParser .property .string::before {
             content: "";
         }
 
-        .string::before {
+        .jsonParser .string::before {
             content: "string ";
         }
 
-        .null::before {
+        .jsonParser .null::before {
             content: "null ";
         }
 
-        .number::before {
+        .jsonParser .number::before {
             content: "number ";
         }
 
-        .bool::before {
+        .jsonParser .boolean::before {
             content: "boolean ";
         }
 
-        .object::before {
+        .jsonParser .object::before {
             content: "object ";
         }
 
-        .array::before {
+        .jsonParser .array::before {
             content: "array ";
         }
     </style>
@@ -98,8 +105,7 @@
         <div id="err"
              style="margin:0px; height:100px; width:600px; display:inline-block; background-color:#CCC; border: 1px solid #999">
         </div>
-        <div id="output"
-             style="margin:0px; height:700px; width:600px; display:inline-block; border: 1px solid #999; overflow: auto;">
+        <div id="output" class="jsonParser">
         </div>
     </div>
 </div>
@@ -113,35 +119,26 @@
 
 <script>
 
-    $(document).ready(function () {
+    function doIt() {
         var input = $('#input').val();
-        var xx = new parser(input);
-        $('#output').html(" ");
-        xx.parseJson();
-        $('#output').html(xx.html);
+        var parser = new Parser(input);
+        var viewer = new Viewer();
 
+        var jsonImage;
+        $('#output').html(" ");
+        jsonImage = parser.parseJson();
+
+        viewer.render(jsonImage);
+        $('#output').html(viewer.html.join(''));
+    }
+    ;
+
+    $(document).ready(function () {
+        doIt();
     });
 
     $('#input').bind('input propertychange', function () {
-        var input = $('#input').val();
-        var xx = new parser(input);
-        $('#output').html(" ");
-        xx.parseJson();
-        $('#output').html(xx.html);
-
-        var error = $('.error').attr('title');
-        if (error) {
-            $('#err').html(error.replace(/\n/g, '<br>'));
-            $('#err').css('background-color', '#F55');
-        } else {
-            $('#err').text(" ");
-            $('#err').css('background-color', '#CCC');
-        }
-    });
-
-    $(document).on('mouseenter', '.error', function () {
-        var error = $(this).attr('title');
-        $('#err').html(error.replace(/\n/g, '<br>'));
+        doIt();
     });
 
     $(document).on('click', '.toogle', function (e) {
@@ -155,19 +152,6 @@
         }
     });
 
-
-    //  $('#err').html(error.replace(/\n/g, '<br>'));
-    /*    $(document).on('mouseleave', '.error', function () {
-     var error = $('.error').attr('title');
-     if (error) {
-     $('#err').html(error.replace(/\n/g, '<br>'));
-     } else {
-     $('#err').text(" ");
-     }
-     });*/
-
 </script>
-
-
 </body>
 </html>	

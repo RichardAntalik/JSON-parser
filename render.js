@@ -1,53 +1,80 @@
 var Viewer = function () {
     "use strict";
-
+    /**
+     * @constructor
+     * Viewer.html [array] contains rendered content of jsonImage
+     */
     var Viewer = function () {
         this.html = [];
     };
 
+    /**
+     * Start rendering jsonImage
+     * @param jsonImage object in form {members: {[name:name, value:vlaue],...]} or an array
+     */
     Viewer.prototype.render = function (jsonImage) {
 
         if (Array.isArray(jsonImage)) {
             this.renderArray(jsonImage);
-        } else {
+        } else if (typeof jsonImage === 'object') {
             this.renderObject(jsonImage);
         }
-        console.groupEnd('Viewer');
     };
-
-    Viewer.prototype.renderObject = function (content) {
+    /**
+     * Render object content
+     * @param jsonImage object in form {members: {[name:name, value:vlaue],...]}
+     */
+    Viewer.prototype.renderObject = function (jsonImage) {
         this.html.push('<span class="object start">{</span><span class="toogle">-</span><ul class="">');
 
-        for (var i = 0; i < content.content.length; i++) {
-            this.renderPair(content.content[i]);
+        var length = jsonImage.members.length;
+        for (var i = 0; i < length; i++) {
+            this.renderPair(jsonImage.members[i], i, length);
         }
 
         this.html.push('</ul><span class="objectEnd">}</span>');
     };
-
-    Viewer.prototype.renderArray = function (content) {
+    /**
+     * Render array content
+     * @param jsonImage array
+     */
+    Viewer.prototype.renderArray = function (jsonImage) {
         this.html.push('<span class="array start">[</span><span class="toogle">-</span><ol class="">');
 
-        for (var i = 0; i < content.length; i++) {
+        var length = jsonImage.length;
+        for (var i = 0; i < length; i++) {
             this.html.push('<li>');
-            this.renderValue(content[i]);
+            this.renderValue(jsonImage[i], i, length);
             this.html.push('</li>');
         }
 
         this.html.push('</ol><span class="arrayEnd">]</span>');
     };
-
-    Viewer.prototype.renderPair = function (pair) {
-
+    /**
+     * Render Pair
+     * @param pair {name:name, value:value}
+     * @param index index of pair
+     * @param length number of pairs
+     */
+    Viewer.prototype.renderPair = function (pair, index, length) {
 
         this.html.push('<li>');
         this.html.push('<span class="property">' + pair.name + ': </span>');
 
         this.renderValue(pair.value);
+
+        if (index < length - 1) {
+            this.html.push(',');
+        }
         this.html.push('</li>');
     };
-
-    Viewer.prototype.renderValue = function (value) {
+    /**
+     * Render value
+     * @param value can be null, boolean, number, string or jsonImage
+     * @param index index of value
+     * @param length number of values
+     */
+    Viewer.prototype.renderValue = function (value, index, length) {
         if (typeof value !== "object") {
             this.html.push('<span class="value ' + typeof value + '">' + value + '</span>');
         } else if (Array.isArray(value)) {
@@ -57,7 +84,10 @@ var Viewer = function () {
         } else {
             this.renderObject(value);
         }
+        if (index < length - 1) {
+            this.html.push(',');
+        }
     };
-    return Viewer;
 
+    return Viewer;
 }();

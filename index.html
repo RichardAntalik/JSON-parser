@@ -37,20 +37,25 @@
 
         .jsonParser .array {
             color: #975008;
-
         }
+
         .jsonParser .boolean {
             color: #EB7802;
-
         }
+
         .jsonParser .number {
             color: #067392;
-
         }
+
         .jsonParser .null {
             color: #DA012C;
-
         }
+
+        .jsonParser .error {
+            color: #FF0000;
+            border: 1px red solid;
+        }
+
         .jsonParser .property .string::before {
             content: "";
         }
@@ -102,8 +107,8 @@
     </textarea>
 
     <div id="container" style="margin:0px; height:800px; width:600px; display:inline-block; float: right;">
-        <div id="err"
-             style="margin:0px; height:100px; width:600px; display:inline-block; background-color:#CCC; border: 1px solid #999">
+        <div id="err" class="jsonParser"
+             style="margin:0px; height:200px; width:600px; display:inline-block; background-color:#CCC; border: 1px solid #999; white-space: pre;">
         </div>
         <div id="output" class="jsonParser">
         </div>
@@ -113,7 +118,6 @@
 </div>
 <script src="parser.js"></script>
 <script src="render.js"></script>
-<script src="data.js"></script>
 <script src="format.js"></script>
 
 
@@ -130,8 +134,21 @@
 
         viewer.render(jsonImage);
         $('#output').html(viewer.html.join(''));
+        $('#err').html('');
+
+        if (!parser.error.isValid) {
+            $('#err').append(parser.error.errorText);
+            $('#err').append('<br><span style="white-space:pre-wrap">');
+            $('#err').append(
+                    parser.error.sampleString[0] +
+                    '<span class="error">' +
+                    parser.error.sampleString[1] +
+                    '</span>' +
+                    parser.error.sampleString[2]
+            );
+        }
+
     }
-    ;
 
     $(document).ready(function () {
         doIt();

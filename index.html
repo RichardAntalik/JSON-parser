@@ -3,10 +3,18 @@
 <head>
     <title>JSON Parser</title>
     <meta http-equiv="content-type" content="text/html;charset=UTF-8">
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="jquery-ui.css">
+    <script src="jquery.js"></script>
+    <script src="jquery-ui.js"></script>
     <style>
         ul {
-            list-style: none
+            list-style: none;
+            margin: 0px;
+        }
+
+        ol {
+            list-style: none;
+            margin: 0px;
         }
 
         #container {
@@ -15,11 +23,19 @@
 
         .jsonParser {
             margin: 0px;
-            height: 700px;
+            height: 550px;
             width: 600px;
             display: inline-block;
             border: 1px solid #999;
             overflow: auto;
+        }
+
+        .jsonParser .collapsed::before {
+            content: "+";
+        }
+
+        .jsonParser .expanded::before {
+            content: "-";
         }
 
         .jsonParser .object {
@@ -60,34 +76,57 @@
             content: "";
         }
 
-        .jsonParser .string::before {
+        .jsonParser.show .string::before {
             content: "string ";
         }
 
-        .jsonParser .null::before {
+        .jsonParser.show .null::before {
             content: "null ";
         }
 
-        .jsonParser .number::before {
+        .jsonParser.show .number::before {
             content: "number ";
         }
 
-        .jsonParser .boolean::before {
+        .jsonParser.show .boolean::before {
             content: "boolean ";
         }
 
-        .jsonParser .object::before {
+        .jsonParser.show .object::before {
             content: "object ";
         }
 
-        .jsonParser .array::before {
+        .jsonParser.show .array::before {
             content: "array ";
         }
+
+        .jsonParser.show .array.end::before {
+            content: "";
+        }
+
+        .jsonParser.show .object.end::before {
+            content: "";
+        }
+
+        .ui-progressbar {
+            display: none;
+            position: relative;
+        }
+
+        .progress-label {
+            position: absolute;
+            left: 50%;
+            top: 4px;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #fff;
+        }
+
     </style>
 </head>
 <body>
-<div style="width: 100%; height: 810px;">
-    <textarea id="input" style="width:600px; height:800px; display:inline-block; float: left;">
+<div style="width: 100%; height: 750px;">
+
+    <textarea id="input" style="width:600px; height:700px; display:inline-block; float: left;">
         {
         "array": [
         1,
@@ -106,68 +145,153 @@
         }
     </textarea>
 
-    <div id="container" style="margin:0px; height:800px; width:600px; display:inline-block; float: right;">
+    <div id="container" style="margin:0px; height:550px; width:600px; display:inline-block; float: right;">
         <div id="err" class="jsonParser"
-             style="margin:0px; height:200px; width:600px; display:inline-block; background-color:#CCC; border: 1px solid #999; white-space: pre;">
+             style="margin:0px; height:180px; width:600px; display:inline-block; background-color:#CCC; border: 1px solid #999; white-space: pre;">
         </div>
         <div id="output" class="jsonParser">
         </div>
     </div>
 </div>
-<div style="width: 100%">
+<div id="toolbar" style="width:100%; height:50px;">
+    <input type="button" id="prettify" value="Prettify"/>
+    <input type="button" id="minify" value="Minify"/>
+    <input type="button" id="" value="test" onclick="test()"/>
+    <label for="types">show types</label><input type="checkbox" id="types"/>
+    <label for="index">show index</label><input type="checkbox" id="index"/>
+
+    <div id="progressbar">
+        <div id="label" class="progress-label"></div>
+    </div>
+    <div id="result"></div>
+</div>
 </div>
 <script src="parser.js"></script>
 <script src="render.js"></script>
-<script src="format.js"></script>
 
 
 <script>
+    var viewer = new Viewer();
 
-    function doIt() {
-        var input = $('#input').val();
-        var parser = new Parser(input);
-        var viewer = new Viewer();
-
-        var jsonImage;
-        $('#output').html(" ");
-        jsonImage = parser.parseJson();
-
-        viewer.render(jsonImage);
-        $('#output').html(viewer.html.join(''));
-        $('#err').html('');
-
-        if (!parser.error.isValid) {
-            $('#err').append(parser.error.errorText);
-            $('#err').append('<br><span style="white-space:pre-wrap">');
-            $('#err').append(
-                    parser.error.sampleString[0] +
-                    '<span class="error">' +
-                    parser.error.sampleString[1] +
-                    '</span>' +
-                    parser.error.sampleString[2]
-            );
+    var w;
+    var msg = {};
+    var progressBarAction;
+    var html = [];
+    if (typeof(Worker) !== "undefined") {
+        if (typeof(w) == "undefined") {
+            w = new Worker("worker.js");
         }
+        w.onmessage = function (event) {
+            msg = JSON.parse(event.data);
+
+            switch (msg.action) {
+                case "parse":
+                    viewer.render(msg.data, "#output", "#err", progress);
+                        progress();
+                    break;
+                case "minify":
+                    $('#input').val(msg.data);
+                    progress();
+                    break;
+                case "prettify":
+                    $('#input').val(msg.data);
+                    progress();
+                    break;
+                default:
+                    progress(msg.action, msg.processed, msg.total)
+                    break;
+            }
+        };
+    } else {
+        document.getElementById("result").innerHTML = "Sorry! No Web Worker support.";
+    }
+
+    $(document).on('click', '#prettify', function (e) {
+        var msg = {};
+        msg.action = "prettify";
+        msg.data = $('#input').val();
+        w.postMessage(JSON.stringify(msg));
+    });
+
+    $(document).on('click', '#minify', function (e) {
+        var msg = {};
+        msg.action = "minify";
+        msg.data = $('#input').val();
+        w.postMessage(JSON.stringify(msg));
+    });
+
+    function startParser() {
+        $('#err').html('');
+        msg.action = "parse";
+        msg.data = $('#input').val();
+        w.postMessage(JSON.stringify(msg));
+
 
     }
 
     $(document).ready(function () {
-        doIt();
+        startParser();
     });
 
     $('#input').bind('input propertychange', function () {
-        doIt();
+        startParser();
     });
 
     $(document).on('click', '.toogle', function (e) {
         e.preventDefault();
-        if ($(this).text() === '-') {
-            $(this).text('+');
-            $(this).next().css('display', 'none');
+        if ($(this).hasClass("expanded")) {
+            $(this).removeClass("expanded");
+            $(this).addClass("collapsed");
+            $(this).next().css("display", "none");
         } else {
-            $(this).text('-');
-            $(this).next().css('display', 'block');
+            $(this).addClass("expanded");
+            $(this).removeClass("collapsed");
+            $(this).next().css("display", "block");
         }
     });
+
+    $(document).on('click', '#types', function (e) {
+        if ($(this).prop("checked")) {
+            $('#output').addClass("show");
+        } else {
+            $('#output').removeClass("show");
+        }
+    });
+    $(document).on('click', '#index', function (e) {
+        if ($(this).prop("checked")) {
+            $("ol").css('list-style', 'decimal');
+        } else {
+            $("ol").css('list-style', 'none');
+        }
+    });
+
+    function progress(action, done, total) {
+        if (!action) {
+            percent = 100;
+        }else{
+            var percent = Math.round((total / done) * 100);
+        }
+        progressbar.stop(true, true);
+        progressBarAction = action;
+        $('#progressbar').css("display", "block");
+        $("#action").text(action);
+        progressbar.progressbar("value", percent);
+    }
+
+    var progressbar = $("#progressbar"),
+            progressLabel = $(".progress-label");
+
+    progressbar.progressbar({
+        value: false,
+        change: function () {
+            progressLabel.text(progressBarAction + ' ' + progressbar.progressbar("value") + "%");
+        },
+        complete: function () {
+            progressLabel.text("Complete!");
+            progressbar.fadeOut(900);
+        }
+    });
+
 
 </script>
 </body>

@@ -1,34 +1,25 @@
 /*
  TODO:
  */
-function repeatString(string, num) {
-    "use strict";
-    return new Array(num + 1).join(string);
-}
+/*Object.prototype.isArray = function (value) {
+ return jQuery.isArray(value);
+ };
+ */
+
 var Parser = function () {
     "use strict";
     /**
      * @constructor
-     * @param {string} jsonString
-     *
-     *
      */
-    var Parser = function (jsonString) {
-        this.jsonString = jsonString;
-        this.length = jsonString.length;
-
-        this.pointer = -1;
-        this.token = "";
-
-        this.error = {};
-        this.error.isValid = true;
-        this.error.trace = [];
+    var Parser = function () {
+    };
+    Parser.prototype.repeatString = function (string, num) {
+        return new Array(num + 1).join(string);
     };
     /**
      * @returns {string} Return next token of this.jsonString relative to this.pointer
      */
     Parser.prototype.getNextToken = function () {
-
         do {
             this.pointer++;
             this.token = this.jsonString.charAt(this.pointer);
@@ -55,7 +46,7 @@ var Parser = function () {
      * @returns {string} extracted value
      */
     Parser.prototype.getJsonValue = function () {
-        console.group("getJsonValue");
+        //console.group("getJsonValue");
 
         var start = this.pointer,
             value = "",
@@ -93,33 +84,45 @@ var Parser = function () {
         this.pointer--;
         this.pointer--;
 
-        console.log(value);
-        console.groupEnd();
+        //console.log(value);
+        //console.groupEnd();
         return value;
     };
     /**
      * Starts parsing this.jsonString
      * @returns {object} jsonImage
      *
-     * jsonImage is object in form {members: [[name:name, value:vlaue],...]} or an array of values.
+     * jsonImage is object in form {members: {[name:name, value:value],...]} or an array of values.
      */
-    Parser.prototype.parseJson = function () {
-        console.clear();
-        console.log("Starting parser...");
+    Parser.prototype.parseJson = function (jsonString) {
+        //console.clear();
+        //console.log("Starting parser...");
 
-        var jsonImage;
+        this.timestamp = new Date().getTime();
+        this.pointer = -1;
+        this.jsonString = jsonString;
+        this.length = jsonString.length;
+        this.isValid = true;
+        this.jsonImage = {};
+        this.error = {};
+        this.valueCount = 0;
+        var jsonImage = {};
 
         this.getNextToken();
         if (this.token === '{') {
-            jsonImage = this.parseJsonObject();
+            jsonImage.jsonImage = this.parseJsonObject();
         } else if (this.token === '[') {
-            jsonImage = this.parseJsonArray();
+            jsonImage.jsonImage = this.parseJsonArray();
         } else {
             this.errorExpected('{ or [');
         }
-        if(this.getNextToken()) {
+        if (this.getNextToken()) {
             this.errorExpected("no more characters");
         }
+
+        jsonImage.error = this.error;
+        jsonImage.isValid = this.isValid;
+        jsonImage.valueCount = this.valueCount;
         return jsonImage;
     };
     /**
@@ -127,12 +130,11 @@ var Parser = function () {
      * @returns {object} object in form {members: {[name:name, value:vlaue],...]}
      */
     Parser.prototype.parseJsonObject = function () {
-        console.group("parseJsonObject");
-        console.log("Parsing JSON object @ " + this.pointer);
+        //console.group("parseJsonObject");
+        //console.log("Parsing JSON object @ " + this.pointer);
 
         var pair, content = [];
-
-        while (this.error.isValid && this.getNextToken() !== '}' && this.pointer <= this.length) {
+        while (this.isValid && this.getNextToken() !== '}' && this.pointer <= this.length) {
             pair = this.parseJsonPair();
             content.push(pair);
 
@@ -144,8 +146,8 @@ var Parser = function () {
             this.errorExpected('}', 'EOF');
         }
 
-        console.log("Ended parsing JSON object");
-        console.groupEnd();
+        //console.log("Ended parsing JSON object");
+        //console.groupEnd();
 
         return {"members": content};
     };
@@ -154,11 +156,10 @@ var Parser = function () {
      * @returns {{name: string, value: *}}
      */
     Parser.prototype.parseJsonPair = function () {
-        console.group("parseJsonPair");
-        console.log("Parsing JSON pair @ " + this.pointer);
+        //console.group("parseJsonPair");
+        //console.log("Parsing JSON pair @ " + this.pointer);
 
         var name, value;
-
         name = this.getJsonValue();
         this.parseJsonString(name, this.pointer);
 
@@ -175,7 +176,7 @@ var Parser = function () {
             this.getPrevToken();
         }
 
-        console.groupEnd();
+        //console.groupEnd();
 
         return {
             "name": name,
@@ -187,12 +188,12 @@ var Parser = function () {
      * @returns {Array}
      */
     Parser.prototype.parseJsonArray = function () {
-        console.group("parseJsonArray");
-        console.log("Parsing JSON array @ " + this.pointer);
+        //console.group("parseJsonArray");
+        //console.log("Parsing JSON array @ " + this.pointer);
 
         var value, content = [];
 
-        while (this.error.isValid && this.getNextToken() !== ']' && this.pointer <= this.length) {
+        while (this.isValid && this.getNextToken() !== ']' && this.pointer <= this.length) {
             this.getPrevToken();
             value = this.parseJsonValue();
             content.push(value);
@@ -209,7 +210,7 @@ var Parser = function () {
             this.errorExpected('Next value', ']');
         }
         this.getNextToken();
-        console.groupEnd();
+        //console.groupEnd();
 
         return content;
     };
@@ -218,11 +219,12 @@ var Parser = function () {
      * @returns {*} converted value
      */
     Parser.prototype.parseJsonValue = function () {
-        console.group("parseJsonValue");
-        console.log("Parsing JSON value @ " + this.pointer);
-
-        var value;
-
+        //console.group("parseJsonValue");
+        //console.log("Parsing JSON value @ " + this.pointer);
+        var value,
+            pattern = /^\s*(-?[0-9]*([.]?[0-9]+))(((e|E)(-|\+)?)[0-9]+)?\s*$/;
+        this.valueCount++;
+        this.sendProgressMsg("Parsing...");
         this.getNextToken();
         switch (this.token) {
             case '"':
@@ -251,37 +253,37 @@ var Parser = function () {
                         value = null;
                         break;
                     default :
-                        if (isNaN(value) || !value) {
-                            this.errorExpected('STRING or NUMBER or true or false or null ', value, this.pointer - (value.length - 1 ));
-                        } else {
+                        if (pattern.test(value)) {
                             value = parseFloat(value);
+                        } else {
+                            this.errorExpected('STRING or NUMBER or true or false or null ', value, this.pointer - (value.length - 1 ));
                         }
                         break;
                 }
         }
-        console.groupEnd();
+        //console.groupEnd();
         return value;
     };
     /**
      * Parse string.
      * @param string string to parse
-     * @param stringAtPointer position of string
+     * @param stringAtPointer position of string (end)
      */
 
     Parser.prototype.parseJsonString = function (string, stringAtPointer) {
-        console.group("parseJsonString");
-        console.log("Parsing JSON string @ ", stringAtPointer);
+        //console.group("parseJsonString");
+        //console.log("Parsing JSON string @ ", stringAtPointer);
+
 
         var pattern = /[0-9A-Fa-f]{4}/,
             hexnumber = "",
             pointer = -1,
             quotesfound = 0,
             character = "",
-            start = stringAtPointer - string.length - 1;
+            start = stringAtPointer - (string.length - 1);
 
         if (string.charAt(0) !== '"') {
-            this.errorExpected('STRING', string, start + 2);
-            console.log('error');
+            this.errorExpected('STRING', string, start);
         }
 
         //read string to second quotes
@@ -308,14 +310,14 @@ var Parser = function () {
                         break;
                     case 'u':
                         hexnumber = string.substr(pointer + 1, 4);
-                        console.log('testing hex:', hexnumber);
+                        //console.log('testing hex:', hexnumber);
                         if (!pattern.test(hexnumber)) {
-                            this.errorExpected('HEX NUMBER', hexnumber, start + pointer + 3);
+                            this.errorExpected('HEX NUMBER', hexnumber, start + pointer + 1);
                         }
                         pointer = pointer + 4;
                         break;
                     default:
-                        this.errorExpected(' &#34; \\ / b f n r t uHEX NUMBER', character, start + pointer + 2);
+                        this.errorExpected(' &#34; \\ / b f n r t uHEX NUMBER', character, start + pointer);
                         break;
                 }
             }
@@ -329,21 +331,21 @@ var Parser = function () {
             pointer++;
             character = string.charAt(pointer);
             if (character.trim()) {
-                this.errorExpected('No more characters', character, start + pointer + 2);
+                this.errorExpected('No more characters', character, start + pointer);
             }
         }
 
-        console.groupEnd();
+        //console.groupEnd();
     };
     /**
-     * Print error message to console.
+     * Print error message to //console.
      * @param expected
      * @param got
      * @returns {string} Formatted error message.
      */
     Parser.prototype.errorExpected = function (expected, got, pointer) {
 
-        if (!this.error.errorText) {
+        if (this.isValid) {
             if (!pointer) {
                 pointer = this.pointer;
             }
@@ -351,39 +353,38 @@ var Parser = function () {
             if (!got) {
                 got = this.token;
             }
+            if (this.pointer >= this.jsonString.length) {
+                got = "eof";
+            }
 
             var nlpos = 0,
                 nl = 0,
                 i;
-
             for (i = 0; i < pointer; i++) {
                 if (this.jsonString.charAt(i) === '\n') {
                     nl++;
                     nlpos = i + 1;
                 }
             }
-            this.error.errorAtLine = nl;
-            this.error.errorAtCol = i - nlpos;
-            this.error.errorAtPointer = this.pointer;
-            if (this.pointer >= this.jsonString.length) {
-                got = "eof";
-            }
-            this.error.errorText = "Error: Expected " + expected + ' \nGot: ' + got + '\nline ' + nl + ' col ' + (i - nlpos);
+            this.error.atLine = nl;
+            this.error.atCol = i - nlpos;
+            this.error.atPointer = this.pointer;
+            this.error.text = "Error: Expected " + expected + ' \nGot: ' + got + '\nline ' + nl + ' col ' + (i - nlpos);
+            this.error.sampleString = this.getErrorSubstring(pointer);
 
-            this.getErrorSubstring(pointer);
-
-            console.error(this.error.errorText);
+            //console.error(this.error.errorText);
         }
-        this.error.isValid = false;
+        this.isValid = false;
     };
     /**
-     * Create an array containing 2lines or 100 charaters before and after error, and bad character inbetween
-     * @param errorAtPointer
+     * Create an array containing 2lines or 50 charaters before and after error, and bad character inbetween
+     * @param errorAtPosition
      */
-    Parser.prototype.getErrorSubstring = function (errorAtPointer) {
-        var pointer = errorAtPointer,
+    Parser.prototype.getErrorSubstring = function (errorAtPosition) {
+        var pointer = errorAtPosition,
             nl = 0,
-            chars = 0;
+            chars = 0,
+            sampleString = [];
 
         do {
             pointer--;
@@ -391,14 +392,14 @@ var Parser = function () {
             if (this.jsonString.charAt(pointer) === '\n') {
                 nl++;
             }
-        } while (nl < 3 && pointer > 0 && chars < 100);
+        } while (nl < 3 && pointer > 0 && chars < 50);
 
-        this.error.sampleString = [
-            this.jsonString.substring(pointer, errorAtPointer),
-            this.jsonString.substring(errorAtPointer, errorAtPointer + 1)
+        sampleString = [
+            this.jsonString.substring(pointer, errorAtPosition),
+            this.jsonString.substring(errorAtPosition, errorAtPosition + 1)
         ];
 
-        pointer = errorAtPointer;
+        pointer = errorAtPosition;
         nl = 0;
         chars = 0;
 
@@ -408,10 +409,99 @@ var Parser = function () {
             if (this.jsonString.charAt(pointer) === '\n') {
                 nl++;
             }
-        } while (nl < 3 && pointer <= this.length && chars < 100);
-        this.error.sampleString.push(this.jsonString.substring(errorAtPointer + 1, pointer));
+        } while (nl < 3 && pointer <= this.length && chars < 50);
+        sampleString.push(this.jsonString.substring(errorAtPosition + 1, pointer));
+
+        if (!sampleString[1]) {
+            sampleString[1] = ' ';
+        }
+        return sampleString;
+    };
+    Parser.prototype.prettify = function (jsonString, indentString) {
+        var character = "",
+            prettified = "",
+            indentLevel = 0;
+        this.jsonString = jsonString;
+        this.length = this.jsonString.length;
+        this.pointer = -1;
+        this.timestamp = new Date().getTime();
+
+
+        if(!indentString){
+            indentString = '  ';
+        }
+        while (this.pointer <= this.length) {
+            character = this.getNextToken();
+            this.sendProgressMsg("Prettifying...");
+            switch (character) {
+                case '"':
+                    prettified += this.getJsonValue();
+                    break;
+                case ':':
+                    prettified += ": ";
+                    break;
+                case '{':
+                    indentLevel++;
+                    prettified += "{\n" + this.repeatString(indentString, indentLevel);
+                    break;
+                case '[':
+                    indentLevel++;
+                    prettified += "[\n" + this.repeatString(indentString, indentLevel);
+                    break;
+                case ',':
+                    prettified += ",\n" + this.repeatString(indentString, indentLevel);
+                    break;
+                case '}':
+                    indentLevel--;
+                    prettified += "\n" + this.repeatString(indentString, indentLevel) + "}";
+                    break;
+                case ']':
+                    indentLevel--;
+                    prettified += "\n" + this.repeatString(indentString, indentLevel) + "]";
+                    break;
+                default:
+                    prettified += character;
+                    break;
+            }
+        }
+        return prettified;
+    };
+    /**
+     * @returns {string} minified string of this.jsonString
+     */
+    Parser.prototype.minify = function (jsonString) {
+        var minified = "";
+        this.jsonString = jsonString;
+        this.length = this.jsonString.length;
+        this.pointer = -1;
+        this.timestamp = new Date().getTime();
+
+        while (this.pointer <= this.length) {
+            this.sendProgressMsg("Minifying...");
+            if (this.getNextToken() === '"') {
+                minified += this.getJsonValue();
+            } else {
+                minified += this.token;
+            }
+        }
+        return minified;
     };
 
+    Parser.prototype.sendProgressMsg = function (action, force) {
+        if (self.document === undefined) {
+            var timenow = new Date().getTime(),
+                msg = {};
+
+            if (timenow > this.timestamp + 1 || force) {
+                this.timestamp = timenow;
+                msg.action = action;
+                msg.processed = this.pointer;
+                msg.total = this.length;
+                postMessage(JSON.stringify(msg));
+            }
+        }
+    };
     return Parser;
-}
-();
+}();
+
+

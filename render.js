@@ -1,93 +1,182 @@
+
+
 var Viewer = function () {
     "use strict";
     /**
      * @constructor
-     * Viewer.html [array] contains rendered content of jsonImage
      */
-    var Viewer = function () {
-        this.html = [];
+    var Viewer = function(){
+
     };
 
-    /**
-     * Start rendering jsonImage
-     * @param jsonImage object in form {members: {[name:name, value:vlaue],...]} or an array
-     */
-    Viewer.prototype.render = function (jsonImage) {
+    Viewer.prototype.render = function (jsonImage, renderToSelector, errorSelector, progress) {
+        this.route = [];
+        this.valueCount = 0;
+        this.imageValueCount = jsonImage.valueCount;
+        this.tag = $(renderToSelector);
+        this.tag.html('');
+        this.jsonImage = jsonImage.jsonImage;
+        this.route.push({actual: this.jsonImage, index: 0, tag: this.tag});
 
-        if (Array.isArray(jsonImage)) {
-            this.renderArray(jsonImage);
-        } else if (typeof jsonImage === 'object') {
-            this.renderObject(jsonImage);
-        }
-    };
-    /**
-     * Render object content
-     * @param jsonImage object in form {members: {[name:name, value:vlaue],...]}
-     */
-    Viewer.prototype.renderObject = function (jsonImage) {
-        this.html.push('<span class="object start">{</span><span class="toogle">-</span><ul class="">');
-
-        var length = jsonImage.members.length;
-        for (var i = 0; i < length; i++) {
-            this.renderPair(jsonImage.members[i], i, length);
+        if (!jsonImage.isValid) {
+            this.renderError(jsonImage, errorSelector);
         }
 
-        this.html.push('</ul><span class="objectEnd">}</span>');
-    };
-    /**
-     * Render array content
-     * @param jsonImage array
-     */
-    Viewer.prototype.renderArray = function (jsonImage) {
-        this.html.push('<span class="array start">[</span><span class="toogle">-</span><ol class="">');
-
-        var length = jsonImage.length;
-        for (var i = 0; i < length; i++) {
-            this.html.push('<li>');
-            this.renderValue(jsonImage[i], i, length);
-            this.html.push('</li>');
+        if (this.imageValueCount) {
+            this.renderContent(progress);
         }
-
-        this.html.push('</ol><span class="arrayEnd">]</span>');
     };
-    /**
-     * Render Pair
-     * @param pair {name:name, value:value}
-     * @param index index of pair
-     * @param length number of pairs
-     */
-    Viewer.prototype.renderPair = function (pair, index, length) {
 
-        this.html.push('<li>');
-        this.html.push('<span class="property">' + pair.name + ': </span>');
+    Viewer.prototype.renderContent = function (progress) {
+        var that = this,
+            actual,
+            before,
+            index,
+            indexbefore,
+            tag,
+            newtag,
+            value,
+            name,
+            i = 0,
+            maxcount = 300;
 
-        this.renderValue(pair.value);
+        while (i < maxcount && this.route.length) {
+            actual = this.route[this.route.length - 1].actual;
+            index = this.route[this.route.length - 1].index;
+            tag = this.route[this.route.length - 1].tag;
 
-        if (index < length - 1) {
-            this.html.push(',');
+            if (this.route.length === 2) {
+                before = this.route[this.route.length - 2].actual;
+                indexbefore = this.route[this.route.length - 2].index;
+                if (this.typeOf(before) === "object") {
+                    before = before.members;
+                }
+            } else {
+                indexbefore = 666;
+                before = [];
+            }
+
+
+            if (index === 0) {
+                if (this.typeOf(actual) === "object") {
+                    tag.append('<span class="value object start">{</span><span class="toogle expanded"></span>');
+                    newtag = $('<ul />');
+                    tag.append(newtag);
+                    tag.append('<span class=" object end">}</span>');
+                    if (indexbefore < before.length) {
+                        tag.append(',');
+                    }
+                    tag = this.route[this.route.length - 1].tag = newtag;
+                } else {
+                    tag.append('<span class="value array start">[</span><span class="toogle expanded"></span>');
+                    newtag = $('<ol />');
+                    tag.append(newtag);
+                    tag.append('<span class=" array end">]</span>');
+
+                    if (indexbefore < before.length - 1) {
+                        tag.append(',');
+                    }
+                    tag = this.route[this.route.length - 1].tag = newtag;
+                }
+            }
+
+            if (actual && this.typeOf(actual) === "object") {
+                while (index < actual.members.length && i < maxcount) {
+                    newtag = $('<li />');
+                    tag.append(newtag);
+                    this.valueCount++;
+
+                    name = actual.members[index].name;
+                    newtag.append('<span class="property">' + name + '</span>: ');
+
+                    value = actual.members[index].value;
+                    if (this.typeOf(value) === "object" || this.typeOf(value) === "array") {
+                        this.route[this.route.length - 1].index = index + 1;
+                        this.route.push({actual: value, index: 0, tag: newtag});
+                        index = 0;
+                        break;
+                    }
+                    newtag.append('<span class="value ' + this.typeOf(value) + '">' + value || 'null' + '</span>');
+                    if (index < actual.members.length - 1) {
+                        newtag.append(',');
+                    }
+
+                    index++;
+
+                    i++;
+                }
+                if (index >= actual.members.length) {
+                    this.route.pop();
+                } else {
+                    this.route[this.route.length - 1].index = index;
+                }
+
+            }
+            if (actual && this.typeOf(actual) === "array") {
+                while (index < actual.length && i < maxcount) {
+                    newtag = $('<li />');
+                    tag.append(newtag);
+                    this.valueCount++;
+                    value = actual[index];
+                    if (this.typeOf(value) === "object" || this.typeOf(value) === "array") {
+                        this.route[this.route.length - 1].index = index + 1;
+                        this.route.push({actual: value, index: 0, tag: newtag});
+                        index = 0;
+                        break;
+                    }
+                    newtag.append('<span class="value ' + this.typeOf(value) + '">' + value || 'null' + '</span>');
+                    if (index < actual.length - 1) {
+                        newtag.append(',');
+                    }
+                    index++;
+
+                    i++;
+                }
+                if (index >= actual.length) {
+                    this.route.pop();
+                }
+                else {
+                    this.route[this.route.length - 1].index = index;
+                }
+            }
+            i++;
         }
-        this.html.push('</li>');
+        progress("Rendering...", this.imageValueCount, this.valueCount);
+        if (this.route.length) {
+            setTimeout(function () {
+                that.renderContent(progress);
+            }, 20);
+        }
     };
-    /**
-     * Render value
-     * @param value can be null, boolean, number, string or jsonImage
-     * @param index index of value
-     * @param length number of values
-     */
-    Viewer.prototype.renderValue = function (value, index, length) {
+
+    Viewer.prototype.renderError = function (jsonImage, errorSelector) {
+        if (!jsonImage.isValid) {
+            $(errorSelector).append(jsonImage.error.text);
+            $(errorSelector).append('<br><span style="white-space:pre-wrap">');
+            $(errorSelector).append(
+                jsonImage.error.sampleString[0] +
+                '<span class="error">' +
+                jsonImage.error.sampleString[1] +
+                '</span>' +
+                jsonImage.error.sampleString[2]
+            );
+        }
+    }
+
+
+    Viewer.prototype.typeOf = function (value) {
         if (typeof value !== "object") {
-            this.html.push('<span class="value ' + typeof value + '">' + value + '</span>');
-        } else if (Array.isArray(value)) {
-            this.renderArray(value);
-        } else if (value === null) {
-            this.html.push('<span class="value null">' + value + '</span>');
-        } else {
-            this.renderObject(value);
+            return typeof value;
         }
-        if (index < length - 1) {
-            this.html.push(',');
+        if (Array.isArray(value)) {
+            return "array";
         }
+        if (value === null) {
+            return null;
+        }
+        return "object";
     };
-
     return Viewer;
-}();
+}
+();
+

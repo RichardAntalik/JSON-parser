@@ -1,11 +1,9 @@
-
-
 var Viewer = function () {
     "use strict";
     /**
      * @constructor
      */
-    var Viewer = function(){
+    var Viewer = function () {
 
     };
 
@@ -17,6 +15,7 @@ var Viewer = function () {
         this.tag.html('');
         this.jsonImage = jsonImage.jsonImage;
         this.route.push({actual: this.jsonImage, index: 0, tag: this.tag});
+        this.timestamp = new Date().getTime();
 
         if (!jsonImage.isValid) {
             this.renderError(jsonImage, errorSelector);
@@ -29,117 +28,57 @@ var Viewer = function () {
 
     Viewer.prototype.renderContent = function (progress) {
         var that = this,
-            actual,
-            before,
-            index,
-            indexbefore,
-            tag,
             newtag,
             value,
             name,
-            i = 0,
-            maxcount = 300;
+            route,
+            interrupt;
 
-        while (i < maxcount && this.route.length) {
-            actual = this.route[this.route.length - 1].actual;
-            index = this.route[this.route.length - 1].index;
-            tag = this.route[this.route.length - 1].tag;
+        //Loop until this.route is completely popped.
+        while (this.route.length && !interrupt) {
+            this.createListElement();
+            route = this.getRoute();
 
-            if (this.route.length === 2) {
-                before = this.route[this.route.length - 2].actual;
-                indexbefore = this.route[this.route.length - 2].index;
-                if (this.typeOf(before) === "object") {
-                    before = before.members;
-                }
-            } else {
-                indexbefore = 666;
-                before = [];
+            //Refer to jsonImage in parser.js. modify route, so we have same conditions for arrays and objects
+            //Maybe I should rather alter jsImg structure.
+            if (this.typeOf(route.actual) === "object") {
+                route.actual = route.actual.members;
             }
 
-
-            if (index === 0) {
-                if (this.typeOf(actual) === "object") {
-                    tag.append('<span class="value object start">{</span><span class="toogle expanded"></span>');
-                    newtag = $('<ul />');
-                    tag.append(newtag);
-                    tag.append('<span class=" object end">}</span>');
-                    if (indexbefore < before.length) {
-                        tag.append(',');
-                    }
-                    tag = this.route[this.route.length - 1].tag = newtag;
-                } else {
-                    tag.append('<span class="value array start">[</span><span class="toogle expanded"></span>');
-                    newtag = $('<ol />');
-                    tag.append(newtag);
-                    tag.append('<span class=" array end">]</span>');
-
-                    if (indexbefore < before.length - 1) {
-                        tag.append(',');
-                    }
-                    tag = this.route[this.route.length - 1].tag = newtag;
-                }
-            }
-
-            if (actual && this.typeOf(actual) === "object") {
-                while (index < actual.members.length && i < maxcount) {
-                    newtag = $('<li />');
-                    tag.append(newtag);
-                    this.valueCount++;
-
-                    name = actual.members[index].name;
+            while (route.index < route.actual.length && !interrupt) {
+                newtag = $('<li />');
+                route.tag.append(newtag);
+                this.valueCount++;
+                //If we are rendering objects we expect pairs
+                if (this.typeOf(this.getRoute().actual) === "object") {
+                    name = route.actual[route.index].name;
                     newtag.append('<span class="property">' + name + '</span>: ');
-
-                    value = actual.members[index].value;
-                    if (this.typeOf(value) === "object" || this.typeOf(value) === "array") {
-                        this.route[this.route.length - 1].index = index + 1;
-                        this.route.push({actual: value, index: 0, tag: newtag});
-                        index = 0;
-                        break;
-                    }
-                    newtag.append('<span class="value ' + this.typeOf(value) + '">' + value || 'null' + '</span>');
-                    if (index < actual.members.length - 1) {
-                        newtag.append(',');
-                    }
-
-                    index++;
-
-                    i++;
-                }
-                if (index >= actual.members.length) {
-                    this.route.pop();
+                    value = route.actual[route.index].value;
                 } else {
-                    this.route[this.route.length - 1].index = index;
+                    value = route.actual[route.index];
                 }
+                //Save current index and make new reference to subobject and tag, where to render it
+                if (this.typeOf(value) === "object" || this.typeOf(value) === "array") {
+                    this.route[this.route.length - 1].index = route.index + 1;
+                    this.route.push({actual: value, index: 0, tag: newtag});
+                    route.index = 0;
+                    break;
+                }
+                newtag.append('<span class="value ' + this.typeOf(value) + '">' + value || 'null' + '</span>');
+                if (route.index < route.actual.length - 1) {
+                    newtag.append(',');
+                }
+                route.index++;
 
+                interrupt = this.isTimeToInterrupt();
             }
-            if (actual && this.typeOf(actual) === "array") {
-                while (index < actual.length && i < maxcount) {
-                    newtag = $('<li />');
-                    tag.append(newtag);
-                    this.valueCount++;
-                    value = actual[index];
-                    if (this.typeOf(value) === "object" || this.typeOf(value) === "array") {
-                        this.route[this.route.length - 1].index = index + 1;
-                        this.route.push({actual: value, index: 0, tag: newtag});
-                        index = 0;
-                        break;
-                    }
-                    newtag.append('<span class="value ' + this.typeOf(value) + '">' + value || 'null' + '</span>');
-                    if (index < actual.length - 1) {
-                        newtag.append(',');
-                    }
-                    index++;
-
-                    i++;
-                }
-                if (index >= actual.length) {
-                    this.route.pop();
-                }
-                else {
-                    this.route[this.route.length - 1].index = index;
-                }
+            if (interrupt){
+                //Looks like it's time to let browser render our elements, so save index to route
+                this.route[this.route.length - 1].index = route.index;
             }
-            i++;
+            if (route.index >= route.actual.length) {
+                this.route.pop();
+            }
         }
         progress("Rendering...", this.imageValueCount, this.valueCount);
         if (this.route.length) {
@@ -149,20 +88,95 @@ var Viewer = function () {
         }
     };
 
+    Viewer.prototype.createListElement = function () {
+        var type,
+            emenentStrings,
+            newtag,
+            route;
+
+        route = this.getRoute();
+        if (route.index === 0) {
+            type = this.typeOf(route.actual);
+            if (type === "object") {
+                emenentStrings = {open: '{', close: '}', element: '<ul />'};
+            } else {
+                emenentStrings = {open: '[', close: ']', element: '<ol />'};
+            }
+            route.tag.append('<span class="value ' + type + ' start">' + emenentStrings.open);
+            route.tag.append('</span><span class="toogle expanded"></span>');
+            newtag = $(emenentStrings.element);
+            route.tag.append(newtag);
+            route.tag.append('<span class=" ' + type + ' end">' + emenentStrings.close + '</span>');
+
+            if (route.indexbefore < route.before.length) {
+                route.tag.append(',');
+            }
+            this.route[this.route.length - 1].tag = newtag;
+        }
+    };
+    /**
+     *
+     * @returns
+     *          actual: reference to jsonImage (sub)object, index: number , tag: (jQuery|HTMLElement)
+     *          before: reference to previous jsonImage (sub)object, indexbefore: number
+     *
+     */
+    Viewer.prototype.getRoute = function () {
+        var before,
+            indexbefore;
+
+        if (this.route.length >= 2) {
+            before = this.route[this.route.length - 2].actual;
+            indexbefore = this.route[this.route.length - 2].index;
+            if (this.typeOf(before) === "object") {
+                before = before.members;
+            }
+        } else {
+            //If we are rendering 1st level of jsonImage there is no before so here are some random numbers
+            indexbefore = 666;
+            before = [];
+        }
+        return {
+            actual: this.route[this.route.length - 1].actual,
+            index: this.route[this.route.length - 1].index,
+            tag: this.route[this.route.length - 1].tag,
+            before: before,
+            indexbefore: indexbefore
+        };
+    };
+
+    Viewer.prototype.isTimeToInterrupt = function (force) {
+        var timenow = new Date().getTime(),
+            msg = {};
+
+        if (timenow > this.timestamp + 50 || force) {
+            this.timestamp = timenow;
+            return true;
+        }
+        return false;
+    };
+
     Viewer.prototype.renderError = function (jsonImage, errorSelector) {
         if (!jsonImage.isValid) {
-            $(errorSelector).append(jsonImage.error.text);
-            $(errorSelector).append('<br><span style="white-space:pre-wrap">');
-            $(errorSelector).append(
-                jsonImage.error.sampleString[0] +
-                '<span class="error">' +
-                jsonImage.error.sampleString[1] +
-                '</span>' +
-                jsonImage.error.sampleString[2]
-            );
-        }
-    }
+            var description,
+                sample;
 
+            description = $('<span />')
+            description.text(jsonImage.error.text);
+            $(errorSelector).append(description);
+            $(errorSelector).append('<br>');
+
+            sample = $('<span style="white-space:pre-wrap" />');
+            sample.text(jsonImage.error.sampleString[0])
+            $(errorSelector).append(sample);
+            sample = $('<span class="error" style="white-space:pre-wrap" />');
+            sample.text(jsonImage.error.sampleString[1])
+            $(errorSelector).append(sample);
+            sample = $('<span style="white-space:pre-wrap" />');
+            sample.text(jsonImage.error.sampleString[2])
+            $(errorSelector).append(sample);
+        }
+    };
 
     Viewer.prototype.typeOf = function (value) {
         if (typeof value !== "object") {
@@ -177,6 +191,8 @@ var Viewer = function () {
         return "object";
     };
     return Viewer;
+
+
 }
 ();
 

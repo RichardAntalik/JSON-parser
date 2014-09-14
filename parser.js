@@ -492,7 +492,7 @@ var Parser = function () {
             var timenow = new Date().getTime(),
                 msg = {};
 
-            if (timenow > this.timestamp + 1 || force) {
+            if (timenow > this.timestamp + 20 || force) {
                 this.timestamp = timenow;
                 msg.action = action;
                 msg.processed = this.pointer;

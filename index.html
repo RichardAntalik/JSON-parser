@@ -76,35 +76,35 @@
             content: "";
         }
 
-        .jsonParser.show .string::before {
+        .jsonParser .string.show::before {
             content: "string ";
         }
 
-        .jsonParser.show .null::before {
+        .jsonParser .null.show::before {
             content: "null ";
         }
 
-        .jsonParser.show .number::before {
+        .jsonParser .number.show::before {
             content: "number ";
         }
 
-        .jsonParser.show .boolean::before {
+        .jsonParser .boolean.show::before {
             content: "boolean ";
         }
 
-        .jsonParser.show .object::before {
+        .jsonParser .object.show::before {
             content: "object ";
         }
 
-        .jsonParser.show .array::before {
+        .jsonParser .array.show::before {
             content: "array ";
         }
 
-        .jsonParser.show .array.end::before {
+        .jsonParser .array.end::before {
             content: "";
         }
 
-        .jsonParser.show .object.end::before {
+        .jsonParser .object.end::before {
             content: "";
         }
 
@@ -187,7 +187,7 @@
             switch (msg.action) {
                 case "parse":
                     viewer.render(msg.data, "#output", "#err", progress);
-                        progress();
+                    progress();
                     break;
                 case "minify":
                     $('#input').val(msg.data);
@@ -203,7 +203,6 @@
             }
         };
     } else {
-        document.getElementById("result").innerHTML = "Sorry! No Web Worker support.";
     }
 
     $(document).on('click', '#prettify', function (e) {
@@ -251,12 +250,9 @@
     });
 
     $(document).on('click', '#types', function (e) {
-        if ($(this).prop("checked")) {
-            $('#output').addClass("show");
-        } else {
-            $('#output').removeClass("show");
-        }
+        viewer.showValueTypes($(this).prop("checked"), progress);
     });
+
     $(document).on('click', '#index', function (e) {
         if ($(this).prop("checked")) {
             $("ol").css('list-style', 'decimal');
@@ -268,8 +264,8 @@
     function progress(action, done, total) {
         if (!action) {
             percent = 100;
-        }else{
-            var percent = Math.round((total / done) * 100);
+        } else {
+            var percent = Math.round((done / total) * 100);
         }
         progressbar.stop(true, true);
         progressBarAction = action;

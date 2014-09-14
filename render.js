@@ -72,7 +72,7 @@ var Viewer = function () {
 
                 interrupt = this.isTimeToInterrupt();
             }
-            if (interrupt){
+            if (interrupt) {
                 //Looks like it's time to let browser render our elements, so save index to route
                 this.route[this.route.length - 1].index = route.index;
             }
@@ -80,11 +80,11 @@ var Viewer = function () {
                 this.route.pop();
             }
         }
-        progress("Rendering...", this.imageValueCount, this.valueCount);
+        progress("Rendering...", this.valueCount, this.imageValueCount);
         if (this.route.length) {
             setTimeout(function () {
                 that.renderContent(progress);
-            }, 20);
+            }, 2);
         }
     };
 
@@ -146,8 +146,7 @@ var Viewer = function () {
     };
 
     Viewer.prototype.isTimeToInterrupt = function (force) {
-        var timenow = new Date().getTime(),
-            msg = {};
+        var timenow = new Date().getTime();
 
         if (timenow > this.timestamp + 50 || force) {
             this.timestamp = timenow;
@@ -177,6 +176,36 @@ var Viewer = function () {
             $(errorSelector).append(sample);
         }
     };
+
+    Viewer.prototype.showValueTypes = function (state, progress) {
+        this.index = -0;
+        this.timestamp = new Date().getTime();
+        this.processShowValueTypes(state, progress);
+    };
+
+    Viewer.prototype.processShowValueTypes = function (state, progress) {
+        var elements = $(".value"),
+            that = this;
+        var i = this.index;
+        while (i <= elements.length && !this.isTimeToInterrupt()) {
+            if (state) {
+                $(elements[i]).addClass("show");
+            } else {
+                $(elements[i]).removeClass("show");
+            }
+            i++;
+        }
+        this.index = i;
+        if (i <= elements.length) {
+            progress("Showing value types...", i, elements.length);
+            setTimeout(function () {
+                that.processShowValueTypes(state, progress);
+            }, 2);
+        }else {
+            progress();
+        }
+    };
+
 
     Viewer.prototype.typeOf = function (value) {
         if (typeof value !== "object") {

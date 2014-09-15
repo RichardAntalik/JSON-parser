@@ -107,6 +107,7 @@ var Parser = function () {
         this.error = {};
         this.valueCount = 0;
         var jsonImage = {};
+        this.oneshot = true;
 
         this.getNextToken();
         if (this.token === '{') {
@@ -425,9 +426,9 @@ var Parser = function () {
         this.length = this.jsonString.length;
         this.pointer = -1;
         this.timestamp = new Date().getTime();
+        this.oneshot = true;
 
-
-        if(!indentString){
+        if (!indentString) {
             indentString = '  ';
         }
         while (this.pointer <= this.length) {
@@ -475,6 +476,7 @@ var Parser = function () {
         this.length = this.jsonString.length;
         this.pointer = -1;
         this.timestamp = new Date().getTime();
+        this.oneshot = true;
 
         while (this.pointer <= this.length) {
             this.sendProgressMsg("Minifying...");
@@ -488,11 +490,20 @@ var Parser = function () {
     };
 
     Parser.prototype.sendProgressMsg = function (action, force) {
+        var time;
         if (self.document === undefined) {
+
+            if (this.oneshot) {
+                time = 50;
+            } else {
+                time = 50;
+            }
+
             var timenow = new Date().getTime(),
                 msg = {};
 
-            if (timenow > this.timestamp + 20 || force) {
+            if (timenow > this.timestamp + time || force) {
+                this.oneshot = false;
                 this.timestamp = timenow;
                 msg.action = action;
                 msg.processed = this.pointer;

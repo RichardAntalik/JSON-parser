@@ -156,136 +156,92 @@
 <div id="toolbar" style="width:100%; height:50px;">
     <input type="button" id="prettify" value="Prettify"/>
     <input type="button" id="minify" value="Minify"/>
-    <input type="button" id="" value="test" onclick="test()"/>
     <label for="types">show types</label><input type="checkbox" id="types"/>
     <label for="index">show index</label><input type="checkbox" id="index"/>
 
     <div id="progressbar">
         <div id="label" class="progress-label"></div>
     </div>
-    <div id="result"></div>
-</div>
 </div>
 <script src="parser.js"></script>
 <script src="render.js"></script>
 
 
 <script>
-    var viewer = new Viewer();
+    var w,
+    msg = {},
+    viewer;
 
-    var w;
-    var msg = {};
-    var progressBarAction;
-    var html = [];
+    var $;
     if (typeof(Worker) !== "undefined") {
         if (typeof(w) == "undefined") {
             w = new Worker("worker.js");
         }
+
+        $(document).on('click', '#prettify', function (e) {
+            var msg = {};
+            msg.action = "prettify";
+            msg.data = $('#input').val();
+            w.postMessage(JSON.stringify(msg));
+        });
+
+        $(document).on('click', '#minify', function (e) {
+            var msg = {};
+            msg.action = "minify";
+            msg.data = $('#input').val();
+            w.postMessage(JSON.stringify(msg));
+        });
+        $('#input').bind('input propertychange', function () {
+            startParser();
+        });
+        function startParser() {
+            msg.action = "parse";
+            msg.data = $('#input').val();
+            w.postMessage(JSON.stringify(msg));
+        }
+
         w.onmessage = function (event) {
             msg = JSON.parse(event.data);
-
             switch (msg.action) {
                 case "parse":
-                    viewer.render(msg.data, "#output", "#err", progress);
-                    progress();
+                    viewer.render(msg.data, viewer.progress);
+                    if (!msg.oneshot) {
+                        viewer.progress();
+                    }
                     break;
                 case "minify":
                     $('#input').val(msg.data);
-                    progress();
+                    if (!msg.oneshot) {
+                        viewer.progress();
+                    }
                     break;
                 case "prettify":
                     $('#input').val(msg.data);
-                    progress();
+                    if (!msg.oneshot) {
+                        viewer.progress();
+                    }
                     break;
                 default:
-                    progress(msg.action, msg.processed, msg.total)
+                    viewer.progress(msg.action, msg.processed, msg.total)
                     break;
             }
         };
     } else {
+        //no web worker fallback
     }
 
-    $(document).on('click', '#prettify', function (e) {
-        var msg = {};
-        msg.action = "prettify";
-        msg.data = $('#input').val();
-        w.postMessage(JSON.stringify(msg));
-    });
-
-    $(document).on('click', '#minify', function (e) {
-        var msg = {};
-        msg.action = "minify";
-        msg.data = $('#input').val();
-        w.postMessage(JSON.stringify(msg));
-    });
-
-    function startParser() {
-        $('#err').html('');
-        msg.action = "parse";
-        msg.data = $('#input').val();
-        w.postMessage(JSON.stringify(msg));
-
-
-    }
 
     $(document).ready(function () {
+        viewer = new Viewer(
+            {renderOutputElement: $('#output'),
+            errorOutput: $('#err'),
+            showTypesCheckbox: '#types',
+            showArrayIndexCheckbox: '#index',
+            progressbarElement:$("#progressbar"),
+            progressbarLabelElement:$(".progress-label") });
+
         startParser();
-    });
 
-    $('#input').bind('input propertychange', function () {
-        startParser();
-    });
-
-    $(document).on('click', '.toogle', function (e) {
-        e.preventDefault();
-        if ($(this).hasClass("expanded")) {
-            $(this).removeClass("expanded");
-            $(this).addClass("collapsed");
-            $(this).next().css("display", "none");
-        } else {
-            $(this).addClass("expanded");
-            $(this).removeClass("collapsed");
-            $(this).next().css("display", "block");
-        }
-    });
-
-    $(document).on('click', '#types', function (e) {
-        viewer.showValueTypes($(this).prop("checked"), progress);
-    });
-
-    $(document).on('click', '#index', function (e) {
-        if ($(this).prop("checked")) {
-            $("ol").css('list-style', 'decimal');
-        } else {
-            $("ol").css('list-style', 'none');
-        }
-    });
-
-    function progress(action, done, total) {
-        if (!action) {
-            percent = 100;
-        } else {
-            var percent = Math.round((done / total) * 100);
-        }
-        progressbar.stop(true, true);
-        progressBarAction = action;
-        $('#progressbar').css("display", "block");
-        $("#action").text(action);
-        progressbar.progressbar("value", percent);
-    }
-
-    var progressbar = $("#progressbar"),
-            progressLabel = $(".progress-label");
-
-    progressbar.progressbar({
-        value: false,
-        change: function () {
-            progressLabel.text(progressBarAction + ' ' + progressbar.progressbar("value") + "%");
-        },
-        complete: function () {
-            progressLabel.text("Complete!");
-            progressbar.fadeOut(900);
-        }
     });
 
 

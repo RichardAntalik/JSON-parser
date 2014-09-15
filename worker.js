@@ -1,8 +1,6 @@
 importScripts("parser.js");
-var parser = new Parser(),
-    jsonImage = {},
-    minified = "",
-    prettified = "";
+
+var parser = new Parser();
 
 onmessage = function (oEvent) {
     var msg = {};
@@ -12,14 +10,18 @@ onmessage = function (oEvent) {
         case "parse":
             jsonImage = parser.parseJson(msg.data);
             msg.data = jsonImage;
+            msg.oneshot = parser.oneshot;
             postMessage(JSON.stringify(msg));
             break;
         case "prettify":
             msg.data = parser.prettify(msg.data);
+            msg.oneshot = parser.oneshot;
             postMessage(JSON.stringify(msg));
+
             break;
         case "minify":
             msg.data = parser.minify(msg.data);
+            msg.oneshot = parser.oneshot;
             postMessage(JSON.stringify(msg));
             break;
     }

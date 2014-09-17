@@ -30,14 +30,6 @@
             overflow: auto;
         }
 
-        .jsonParser .collapsed::before {
-            content: "+";
-        }
-
-        .jsonParser .expanded::before {
-            content: "-";
-        }
-
         .jsonParser .object {
             color: #3BA10A;
         }
@@ -92,12 +84,28 @@
             content: "boolean ";
         }
 
-        .jsonParser .object.show::before {
-            content: "object ";
+        .jsonParser .object.show.collapsed::before {
+            content: "object +";
         }
 
-        .jsonParser .array.show::before {
-            content: "array ";
+        .jsonParser .array.show.collapsed::before {
+            content: "array +";
+        }
+
+        .jsonParser .object.show.expanded::before {
+            content: "object -";
+        }
+
+        .jsonParser .array.show.expanded::before {
+            content: "array -";
+        }
+
+        .jsonParser .collapsed::before {
+            content: "+";
+        }
+
+        .jsonParser .expanded::before {
+            content: "-";
         }
 
         .jsonParser .array.end::before {
@@ -106,6 +114,10 @@
 
         .jsonParser .object.end::before {
             content: "";
+        }
+
+        .jsonParser .count {
+            display: none;
         }
 
         .ui-progressbar {
@@ -127,22 +139,8 @@
 <div style="width: 100%; height: 750px;">
 
     <textarea id="input" style="width:600px; height:700px; display:inline-block; float: left;">
-        {
-        "array": [
-        1,
-        2,
-        3
-        ],
-        "boolean": true,
-        "null": null,
-        "number": 123,
-        "object": {
-        "a": "b",
-        "c": "d",
-        "e": "f"
-        },
-        "string": "Hello World"
-        }
+        [1,2,3,[4,5,6,[7,8,9,[11,22,33]]],
+        {"a":"a","b":"b","c":{"d":"d","e":"e","f":{"g":"g","h":"h","i":{"j":"j","k":"k","l":"l"}}}}]
     </textarea>
 
     <div id="container" style="margin:0px; height:550px; width:600px; display:inline-block; float: right;">
@@ -168,11 +166,30 @@
 
 
 <script>
-    var w,
-    msg = {},
-    viewer;
+    /*
+     var textArea = document.getElementById('input');
 
-    var $;
+     //define your selection
+     var selectionStart = 50;
+     var selectionEnd = 60;
+     textArea.setSelectionRange( selectionStart, selectionEnd);
+
+     // now lets do some math
+     // we need the number of chars in a row
+     var charsPerRow = textArea.cols;
+
+     // we need to know at which row our selection starts
+     var selectionRow = (selectionStart - (selectionStart % charsPerRow)) / charsPerRow;
+
+     // we need to scroll to this row but scrolls are in pixels,
+     // so we need to know a row's height, in pixels
+     lineHeight = textArea.clientHeight / textArea.rows;
+     // scroll !!
+     textArea.scrollTop = textArea.clientHeight ;*/
+    var w,
+            msg = {},
+            viewer;
+
     if (typeof(Worker) !== "undefined") {
         if (typeof(w) == "undefined") {
             w = new Worker("worker.js");
@@ -191,19 +208,21 @@
             msg.data = $('#input').val();
             w.postMessage(JSON.stringify(msg));
         });
-        $('#input').bind('input propertychange', function () {
-            startParser();
-        });
         function startParser() {
             msg.action = "parse";
             msg.data = $('#input').val();
             w.postMessage(JSON.stringify(msg));
         }
 
+        $('#input').bind('input propertychange', function () {
+            startParser();
+        });
+
         w.onmessage = function (event) {
             msg = JSON.parse(event.data);
             switch (msg.action) {
                 case "parse":
+                    viewer.cancelAction('render');
                     viewer.render(msg.data, viewer.progress);
                     if (!msg.oneshot) {
                         viewer.progress();
@@ -221,6 +240,15 @@
                         viewer.progress();
                     }
                     break;
+                case 'log':
+                    console.log(msg.data);
+                    break;
+                case 'group':
+                    console.group(msg.data);
+                    break;
+                case 'groupEnd':
+                    console.groupEnd(msg.data);
+                    break;
                 default:
                     viewer.progress(msg.action, msg.processed, msg.total)
                     break;
@@ -229,22 +257,19 @@
     } else {
         //no web worker fallback
     }
-
-
     $(document).ready(function () {
         viewer = new Viewer(
-            {renderOutputElement: $('#output'),
-            errorOutput: $('#err'),
-            showTypesCheckbox: '#types',
-            showArrayIndexCheckbox: '#index',
-            progressbarElement:$("#progressbar"),
-            progressbarLabelElement:$(".progress-label") });
+                {
+                    renderOutputElement: $('#output'),
+                    errorOutput: $('#err'),
+                    showTypesCheckbox: $('#types'),
+                    showArrayIndexCheckbox: $('#index'),
+                    progressbarElement: $("#progressbar"),
+                    progressbarLabelElement: $(".progress-label")
+                });
 
         startParser();
-
     });
-
-
 </script>
 </body>
 </html>	

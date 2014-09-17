@@ -1,5 +1,5 @@
 /*global $:false */
-//TODO: still ugly code, obj.constructor, error callback
+//TODO: still ugly code, element walker, cancelAction
 
 var Viewer = function () {
     "use strict";
@@ -7,36 +7,22 @@ var Viewer = function () {
      * @constructor
      */
     var Viewer = function (controls) {
-        this.controls = controls;
-        this.index = 0;
-        this.showTypes = $(controls.showTypesCheckbox).prop("checked");
-        this.showIndex = $(controls.showArrayIndexCheckbox).prop("checked");
-
         var that = this;
-        $(document).on('click', '.toogle', function (e) {
-            e.preventDefault();
-            if ($(this).hasClass("expanded")) {
-                $(this).removeClass("expanded");
-                $(this).addClass("collapsed");
-                $(this).next().css("display", "none");
-            } else {
-                $(this).addClass("expanded");
-                $(this).removeClass("collapsed");
-                $(this).next().css("display", "block");
-            }
-        });
-
-        $(document).on('click', controls.showTypesCheckbox, function () {
+        this.controls = controls;
+        this.showTypes = controls.showTypesCheckbox.prop("checked");
+        this.showIndex = controls.showArrayIndexCheckbox.prop("checked");
+        $(document).on('click', controls.showTypesCheckbox.selector, function () {
             that.showValueTypes($(this).prop("checked"), that.progress);
         });
-
-        $(document).on('click', controls.showArrayIndexCheckbox, function () {
+        $(document).on('click', controls.showArrayIndexCheckbox.selector, function () {
             that.showArrayIndex($(this).prop("checked"), that.progress);
         });
-
+        $(document).on('click', controls.renderOutputElement.selector + ' .toogle', function (e) {
+            e.preventDefault();
+            that.toogleList($(this));
+        });
         this.progressbar = controls.progressbarElement;
-        this.progressLabel =controls.progressbarLabelElement;
-
+        this.progressLabel = controls.progressbarLabelElement;
         this.progressbar.progressbar({
             value: false,
             change: function () {
@@ -47,7 +33,6 @@ var Viewer = function () {
                 that.progressbar.fadeOut(900);
             }
         });
-        this.progressbar.progressbar("value", 55);
     };
 
     Viewer.prototype.progress = function (action, done, total) {
@@ -57,6 +42,8 @@ var Viewer = function () {
         } else {
             percent = Math.round((done / total) * 100);
         }
+        console.log(done, total);
+
         this.progressbarAction = action;
         this.progressbar.stop(true, true);
         this.progressbar.css("display", "block");
@@ -64,66 +51,94 @@ var Viewer = function () {
     };
 
     Viewer.prototype.render = function (jsonImage, progress) {
+        var maxcount = 1000;
+
+        this.cancelAction('render');
         this.controls.renderOutputElement.html('');
-        this.controls.errorOutput.html('');
-        this.valueCount = 0;
-        this.imageValueCount = jsonImage.valueCount;
+        this.jsonImage = jsonImage.jsonImage;
+        if (this.controls.errorOutput[0]) {
+            this.controls.errorOutput.html('');
+        }
         this.oneshot = true;
+
+        this.valueCount = 0;
+        this.imageValueCount = this.getValueCount(jsonImage.jsonImage, maxcount);
+
         this.route = [];
+        this.route.push({actual: jsonImage.jsonImage, index: 0, tag: this.controls.renderOutputElement});
+
         if (!jsonImage.isValid) {
             this.renderError(jsonImage);
         }
-        this.route.push({actual: jsonImage.jsonImage, index: 0, tag: this.controls.renderOutputElement});
-        this.renderContent(progress);
+        this.renderContent(progress, maxcount);
     };
 
-    Viewer.prototype.renderContent = function (progress) {
+    Viewer.prototype.renderContent = function (progress, maxcount) {
         var that = this,
-            route,
-            interrupt;
+            interrupt = false;
 
         this.timestamp = new Date().getTime();
         while (this.route.length && !interrupt) {
-            this.createListElement();
-            route = this.getRoute();
-            //Refer to jsonImage in parser.js. modify route, so we have same conditions for arrays and objects
-            //Maybe I should rather alter jsImg structure.
-            route.actual = route.actual.members || route.actual;
-            interrupt = this.renderValues(route);
+            this.renderList(maxcount);
+            interrupt = this.renderValues();
         }
-
         if (!this.oneshot) {
             this.progress("Rendering...", this.valueCount, this.imageValueCount);
         }
         if (this.route.length) {
-            setTimeout(function () {
-                that.renderContent(progress);
-            }, 2);
+            this.renderTimeout = setTimeout(function () {
+                that.renderContent(progress, maxcount);
+            }, 5);
         }
     };
 
-    Viewer.prototype.renderValues = function (route) {
+
+    Viewer.prototype.renderValues = function () {
         var itemElement,
-            nameElement,
-            valueElement,
             value,
             name,
+            route = this.getRoute(),
             interrupt;
+
         while (route.index < route.actual.length && !interrupt) {
-            //If we are rendering objects we expect pairs
-            itemElement = $('<li />');
-            if (this.typeOf(this.getRoute().actual) === "object") {
+            interrupt = this.isTimeToInterrupt();
+            this.valueCount++;
+            if (route.type === "object") {
                 name = route.actual[route.index].name;
-                value = route.actual[route.index].value;
-                nameElement = $('<span class="property"/>');
-                nameElement.text(name);
-                nameElement.append(': ');
-                itemElement.append(nameElement);
-
-            } else {
-                value = route.actual[route.index];
             }
+            value = route.actual[route.index].value;
+            itemElement = this.createItemElement(name, value, route.index);
+            route.tag.append(itemElement);
+            if (this.typeOf(value) === "array") {
+                this.route[this.route.length - 1].index = route.index + 1;
+                this.route.push({actual: value, index: 0, tag: itemElement});
+                route.index = 0;
+                break;
+            }
+            if (route.index < route.actual.length - 1) {
+                itemElement.append(',');
+            }
+            route.index++;
+        }
+        this.route[this.route.length - 1].index = route.index;
+        if (route.index >= route.actual.length) {
+            this.route.pop();
+        }
+        return interrupt;
+    };
+    Viewer.prototype.createItemElement = function (name, value, index) {
+        var nameElement,
+            valueElement,
 
+            itemElement = $('<li data-index="' + index + '" />');
+
+        if (name) {
+            nameElement = $('<span class="property"/>');
+            nameElement.text(name);
+            nameElement.append(': ');
+            itemElement.append(nameElement);
+        }
+        if (typeof value !== 'object') {
             valueElement = $('<span class="value"/>');
             valueElement.text(value);
             if (this.typeOf(value) === 'null') {
@@ -133,70 +148,73 @@ var Viewer = function () {
             if (this.showTypes) {
                 valueElement.addClass('show');
             }
-            route.tag.append(itemElement);
-
-            this.valueCount++;
-            //Save current index and make new reference to subobject and tag, where to render it
-            if (this.typeOf(value) === "object" || this.typeOf(value) === "array") {
-                this.route[this.route.length - 1].index = route.index + 1;
-                this.route.push({actual: value, index: 0, tag: itemElement});
-                route.index = 0;
-                break;
-            }
-
             itemElement.append(valueElement);
-            if (route.index < route.actual.length - 1) {
-                itemElement.append(',');
-            }
-            route.index++;
-
-            interrupt = this.isTimeToInterrupt();
         }
-        if (interrupt) {
-            //Looks like it's time to let browser render our elements, so save index to route
-            this.route[this.route.length - 1].index = route.index;
-        }
-        if (route.index >= route.actual.length) {
-            this.route.pop();
-        }
-        return interrupt;
+        return itemElement;
     };
 
-    Viewer.prototype.createListElement = function () {
-        var type,
-            elementStrings,
-            listElement,
-            valueElement,
-            route;
 
-        route = this.getRoute();
+    Viewer.prototype.renderList = function (maxcount) {
+        var listElement,
+            route = this.getRoute();
+
+
         if (route.index === 0) {
-            type = this.typeOf(route.actual);
-            if (type === "object") {
-                elementStrings = {open: '{', close: '}', element: '<ul />'};
-            } else {
-                elementStrings = {open: '[', close: ']', element: '<ol />'};
-            }
-            listElement = $(elementStrings.element);
-            if (this.showIndex && type === "array") {
-                listElement.css('list-style', 'decimal');
-                listElement.attr("start", "0");
-            }
-            valueElement = $('<span class="value start">');
-            valueElement.addClass(type);
-            valueElement.text(elementStrings.open);
-            if (this.showTypes) {
-                valueElement.addClass('show');
-            }
-            route.tag.append(valueElement);
-            route.tag.append('<span class="toogle expanded"></span>');
-            route.tag.append(listElement);
-            route.tag.append('<span class=" ' + type + ' end">' + elementStrings.close + '</span>');
+            this.route[this.route.length - 1].index++;
+
+            listElement = this.createListElement(route, maxcount);
+            this.route[this.route.length - 1].tag = listElement;
+
             if (route.indexbefore < route.before.length) {
                 route.tag.append(',');
             }
-            this.route[this.route.length - 1].tag = listElement;
+            if (this.valueCount > maxcount) {
+                this.route.pop();
+            }
+
         }
+    };
+
+    Viewer.prototype.createListElement = function (route, maxcount) {
+        var elementStrings,
+            listElement,
+            valueElement;
+
+        if (route.type === "object") {
+            elementStrings = {
+                open: '{',
+                close: '}',
+                element: '<ul class="list" />',
+                count: route.actual.length - 1
+            };
+        } else {
+            elementStrings = {
+                open: '[',
+                close: ']',
+                element: '<ol start="0" class="list" />',
+                count: route.actual.length - 1
+            };
+        }
+        listElement = $(elementStrings.element);
+        valueElement = $('<span class="value start toogle expanded">');
+        valueElement.addClass(route.type);
+        valueElement.text(elementStrings.open);
+        route.tag.append(valueElement);
+        route.tag.append('<span class="count">(' + elementStrings.count + ')</span>');
+        route.tag.append(listElement);
+        route.tag.append('<span class=" ' + route.type + ' end">' + elementStrings.close + '</span>');
+        if (this.showIndex && route.type === "array") {
+            listElement.css('list-style', 'decimal');
+        }
+        if (this.showTypes) {
+            valueElement.addClass('show');
+        }
+
+        if (this.valueCount > maxcount) {
+            this.toogleList(valueElement);
+            valueElement.addClass('empty');
+        }
+        return listElement;
     };
 
     /**
@@ -205,21 +223,26 @@ var Viewer = function () {
      *          before: reference to previous jsonImage (sub)object, indexbefore: number
      */
     Viewer.prototype.getRoute = function () {
-        var before,
+        var actual,
+            index,
+            before,
             indexbefore;
 
         if (this.route.length >= 2) {
             before = this.route[this.route.length - 2].actual;
             indexbefore = this.route[this.route.length - 2].index;
-            before = before.members || before;
         } else {
             //If we are rendering 1st level of jsonImage there is no before so here are some random numbers
             indexbefore = 666;
             before = [];
         }
+        actual = this.route[this.route.length - 1].actual;
+        index = this.route[this.route.length - 1].index;
+
         return {
-            actual: this.route[this.route.length - 1].actual,
-            index: this.route[this.route.length - 1].index,
+            type: actual[0],
+            actual: actual,
+            index: index,
             tag: this.route[this.route.length - 1].tag,
             before: before,
             indexbefore: indexbefore
@@ -247,25 +270,32 @@ var Viewer = function () {
     Viewer.prototype.renderError = function (jsonImage) {
         var description,
             sample;
-        description = $('<span />');
-        description.text(jsonImage.error.text);
-        this.controls.errorOutput.append(description);
-        this.controls.errorOutput.append('<br>');
+        if (typeof this.controls.errorOutput === "function") {
+            this.controls.errorOutput(jsonImage.error);
+        } else if (this.controls.errorOutput) {
+            description = $('<span />');
+            description.text(jsonImage.error.text);
+            this.controls.errorOutput.append(description);
+            this.controls.errorOutput.append('<br>');
 
-        sample = $('<span style="white-space:pre-wrap" />');
-        sample.text(jsonImage.error.sampleString[0]);
-        this.controls.errorOutput.append(sample);
-        sample = $('<span class="error" style="white-space:pre-wrap" />');
-        sample.text(jsonImage.error.sampleString[1]);
-        this.controls.errorOutput.append(sample);
-        sample = $('<span style="white-space:pre-wrap" />');
-        sample.text(jsonImage.error.sampleString[2]);
-        this.controls.errorOutput.append(sample);
+            sample = $('<span style="white-space:pre-wrap" />');
+            sample.text(jsonImage.error.sampleString[0]);
+            this.controls.errorOutput.append(sample);
+            sample = $('<span class="error" style="white-space:pre-wrap" />');
+            sample.text(jsonImage.error.sampleString[1]);
+            this.controls.errorOutput.append(sample);
+            sample = $('<span style="white-space:pre-wrap" />');
+            sample.text(jsonImage.error.sampleString[2]);
+            this.controls.errorOutput.append(sample);
+        }
     };
 
     Viewer.prototype.showValueTypes = function (state, progress, index) {
-        var elements = $("#output .value"),
+
+        var container = this.controls.renderOutputElement.selector,
+            elements = $(container + " .value"),
             that = this;
+        this.cancelAction('showTypes');
         if (!index) {
             this.oneshot = true;
             index = 0;
@@ -280,9 +310,9 @@ var Viewer = function () {
             }
             index++;
         }
-        if (index <= elements.length) {
+        if (index <= elements.length && !this.cacnelAction) {
             this.progress("Showing value types...", index, elements.length);
-            setTimeout(function () {
+            this.typesTimeout = setTimeout(function () {
                 that.showValueTypes(state, progress, index);
             }, 1);
         } else {
@@ -293,15 +323,18 @@ var Viewer = function () {
     };
 
     Viewer.prototype.showArrayIndex = function (state, progress, index) {
-        var elements = $("#output ol"),
+        var container = this.controls.renderOutputElement.selector,
+            elements = $(container + " ol"),
             that = this;
+        this.cancelAction('showIndex');
         if (!index) {
             index = 0;
+            this.cacnelAction = true;
             this.oneshot = true;
         }
         this.showIndex = state;
         this.timestamp = new Date().getTime();
-        while (index <= elements.length && !this.isTimeToInterrupt()) {
+        while (index <= elements.length && !this.isTimeToInterrupt() && !this.ca) {
             if (state) {
                 $(elements[index]).css('list-style', 'decimal');
                 $(elements[index]).attr("start", "0");
@@ -311,9 +344,9 @@ var Viewer = function () {
             index++;
         }
 
-        if (index <= elements.length) {
+        if (index <= elements.length && !this.cacnelAction) {
             this.progress("Showing array indexes...", index, elements.length);
-            setTimeout(function () {
+            this.indexTimeout = setTimeout(function () {
                 that.showArrayIndex(state, progress, index);
             }, 1);
         } else {
@@ -322,7 +355,95 @@ var Viewer = function () {
             }
         }
     };
+    Viewer.prototype.toogleList = function ($toogleBtnElement) {
 
+        if ($toogleBtnElement.hasClass("expanded")) {
+            $toogleBtnElement.removeClass("expanded");
+            $toogleBtnElement.addClass("collapsed");
+            $toogleBtnElement.parent().find(".list").first().css("display", "none");
+            $toogleBtnElement.parent().find(".count").first().css("display", "inline");
+        } else {
+            $toogleBtnElement.addClass("expanded");
+            $toogleBtnElement.removeClass("collapsed");
+            $toogleBtnElement.parent().find(".list").first().css("display", "block");
+            $toogleBtnElement.parent().find(".count").first().css("display", "none");
+        }
+        if ($toogleBtnElement.hasClass("empty")) {
+            $toogleBtnElement.removeClass('empty');
+            this.renderToEmptyList($toogleBtnElement.parent());
+        }
+    };
+
+    Viewer.prototype.renderToEmptyList = function ($itemElement) {
+        var trace = [],
+            image,
+            $rootElement = $itemElement.find('.list');
+
+        while ($itemElement.prop("tagName") === 'LI') {
+            trace.push($itemElement.attr('data-index'));
+            $itemElement = $itemElement.parent().parent();
+        }
+        image = this.jsonImage;
+        while (trace.length) {
+            image = image[trace[trace.length - 1]].value;
+            trace.pop();
+        }
+
+        this.imageValueCount = this.getValueCount(image, 1000);
+        this.route = [{actual: image, index: 1, tag: $rootElement}];
+        this.oneshot = true;
+        this.valueCount = 0;
+        this.renderContent(this.progress, 1000);
+    };
+
+    Viewer.prototype.getValueCount = function (jsonImage, maxcount) {
+        var valueCount = 0,
+            i = 0,
+            value,
+            total = 0,
+            route;
+        this.route = [];
+        this.route.push({actual: jsonImage, index: 1, tag: ""});
+
+        while (this.route.length) {
+            route = this.getRoute();
+            i = route.index;
+            while (i < route.actual.length && valueCount <= maxcount) {
+                valueCount++;
+                value = route.actual[i].value;
+                if (this.typeOf(value) === 'array') {
+                    this.route[this.route.length - 1].index = i + 1;
+                    this.route.push({actual: value, index: 1, tag: ""});
+                    break;
+                }
+                i++;
+            }
+            if (i >= route.actual.length || valueCount > maxcount) {
+                route = this.getRoute();
+                total += route.actual.length - 1;
+                this.route.pop();
+            }
+        }
+        return total;
+    };
+
+    Viewer.prototype.cancelAction = function (action) {
+        var id;
+        switch (action) {
+            case 'render':
+                id = this.renderTimeout;
+                break;
+            case 'showTypes':
+                id = this.typesTimeout;
+                break;
+            case 'showIndex':
+                id = this.indexTimeout;
+                break;
+            default :
+                break;
+        }
+        clearTimeout(id);
+    };
 
     Viewer.prototype.typeOf = function (value) {
         if (typeof value !== "object") {

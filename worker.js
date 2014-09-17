@@ -1,6 +1,7 @@
 importScripts("parser.js");
 
 var parser = new Parser();
+parser.logsEnabled = false;
 
 onmessage = function (oEvent) {
     var msg = {};

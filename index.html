@@ -166,109 +166,22 @@
 
 
 <script>
-    /*
-     var textArea = document.getElementById('input');
-
-     //define your selection
-     var selectionStart = 50;
-     var selectionEnd = 60;
-     textArea.setSelectionRange( selectionStart, selectionEnd);
-
-     // now lets do some math
-     // we need the number of chars in a row
-     var charsPerRow = textArea.cols;
-
-     // we need to know at which row our selection starts
-     var selectionRow = (selectionStart - (selectionStart % charsPerRow)) / charsPerRow;
-
-     // we need to scroll to this row but scrolls are in pixels,
-     // so we need to know a row's height, in pixels
-     lineHeight = textArea.clientHeight / textArea.rows;
-     // scroll !!
-     textArea.scrollTop = textArea.clientHeight ;*/
     var w,
-            msg = {},
-            viewer;
-
-    if (typeof(Worker) !== "undefined") {
-        if (typeof(w) == "undefined") {
-            w = new Worker("worker.js");
-        }
-
-        $(document).on('click', '#prettify', function (e) {
-            var msg = {};
-            msg.action = "prettify";
-            msg.data = $('#input').val();
-            w.postMessage(JSON.stringify(msg));
-        });
-
-        $(document).on('click', '#minify', function (e) {
-            var msg = {};
-            msg.action = "minify";
-            msg.data = $('#input').val();
-            w.postMessage(JSON.stringify(msg));
-        });
-        function startParser() {
-            msg.action = "parse";
-            msg.data = $('#input').val();
-            w.postMessage(JSON.stringify(msg));
-        }
-
-        $('#input').bind('input propertychange', function () {
-            startParser();
-        });
-
-        w.onmessage = function (event) {
-            msg = JSON.parse(event.data);
-            switch (msg.action) {
-                case "parse":
-                    viewer.cancelAction('render');
-                    viewer.render(msg.data, viewer.progress);
-                    if (!msg.oneshot) {
-                        viewer.progress();
-                    }
-                    break;
-                case "minify":
-                    $('#input').val(msg.data);
-                    if (!msg.oneshot) {
-                        viewer.progress();
-                    }
-                    break;
-                case "prettify":
-                    $('#input').val(msg.data);
-                    if (!msg.oneshot) {
-                        viewer.progress();
-                    }
-                    break;
-                case 'log':
-                    console.log(msg.data);
-                    break;
-                case 'group':
-                    console.group(msg.data);
-                    break;
-                case 'groupEnd':
-                    console.groupEnd(msg.data);
-                    break;
-                default:
-                    viewer.progress(msg.action, msg.processed, msg.total)
-                    break;
-            }
-        };
-    } else {
-        //no web worker fallback
-    }
+    viewer,
+    parser;
     $(document).ready(function () {
         viewer = new Viewer(
                 {
+                    inputElement: $('#input'),
+                    prettifyButton: $('#prettify'),
+                    minifyButton: $('#minify'),
                     renderOutputElement: $('#output'),
                     errorOutput: $('#err'),
                     showTypesCheckbox: $('#types'),
                     showArrayIndexCheckbox: $('#index'),
-                    progressbarElement: $("#progressbar"),
-                    progressbarLabelElement: $(".progress-label")
+                    progressbarElement: $('#progressbar'),
+                    progressbarLabelElement: $('.progress-label')
                 });
-
-        startParser();
     });
 </script>
 </body>

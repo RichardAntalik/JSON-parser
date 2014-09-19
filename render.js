@@ -1,5 +1,5 @@
-/*global $:false */
-//TODO: still ugly code, element walker, cancelAction
+/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false */
+//TODO: still ugly code, element walker
 
 var Viewer = function () {
     "use strict";
@@ -33,6 +33,112 @@ var Viewer = function () {
                 that.progressbar.fadeOut(900);
             }
         });
+        this.startWorker();
+    };
+
+    Viewer.prototype.startWorker = function () {
+
+        if (typeof Worker !== "undefined") {
+            if (typeof w === "undefined") {
+                try {
+                    w = new Worker("worker.js");
+                } catch (err) {
+                    console.error(err.message);
+                    this.bindNoWorkerEvents();
+                }
+            }
+            if (w) {         //check this out
+                this.bindWorkerEvents();
+            }
+        } else {
+            this.bindNoWorkerEvents();
+        }
+    };
+
+
+    Viewer.prototype.bindNoWorkerEvents = function () {
+        var that = this;
+        parser = new Parser();
+        $(document).on('click', this.controls.prettifyButton.selector, function () {
+            that.controls.inputElement.val(parser.prettify(that.controls.inputElement.val()));
+        });
+
+        $(document).on('click', this.controls.minifyButton.selector, function () {
+            that.controls.inputElement.val(parser.minify(that.controls.inputElement.val()));
+        });
+
+        that.controls.inputElement.bind('input propertychange', function () {
+            var img = parser.parseJson(that.controls.inputElement.val());
+            viewer.render(img);
+        });
+        var img = parser.parseJson(that.controls.inputElement.val());
+        this.render(img);
+    };
+
+    Viewer.prototype.bindWorkerEvents = function () {
+        var that = this,
+            msg = {};
+
+        $(document).on('click', this.controls.prettifyButton.selector, function () {
+            var msg = {};
+            msg.action = "prettify";
+            msg.data = that.controls.inputElement.val();
+            w.postMessage(JSON.stringify(msg));
+        });
+
+        $(document).on('click', this.controls.minifyButton.selector, function () {
+            var msg = {};
+            msg.action = "minify";
+            msg.data = that.controls.inputElement.val();
+            w.postMessage(JSON.stringify(msg));
+        });
+
+        that.controls.inputElement.bind('input propertychange', function () {
+            var msg = {};
+            msg.action = "parse";
+            msg.data = that.controls.inputElement.val();
+            w.postMessage(JSON.stringify(msg));
+        });
+
+        w.onmessage = function (event) {
+            msg = JSON.parse(event.data);
+            switch (msg.action) {
+                case "parse":
+                    viewer.cancelAction('render');
+                    viewer.render(msg.data, viewer.progress);
+                    if (!msg.oneshot) {
+                        viewer.progress();
+                    }
+                    break;
+                case "minify":
+                    that.controls.inputElement.val(msg.data);
+                    if (!msg.oneshot) {
+                        viewer.progress();
+                    }
+                    break;
+                case "prettify":
+                    that.controls.inputElement.val(msg.data);
+                    if (!msg.oneshot) {
+                        viewer.progress();
+                    }
+                    break;
+                case 'log':
+                    console.log(msg.data);
+                    break;
+                case 'group':
+                    console.group(msg.data);
+                    break;
+                case 'groupEnd':
+                    console.groupEnd(msg.data);
+                    break;
+                default:
+                    viewer.progress(msg.action, msg.processed, msg.total);
+                    break;
+            }
+        };
+        msg.action = "parse";
+        msg.data = $('#input').val();
+        w.postMessage(JSON.stringify(msg));
     };
 
     Viewer.prototype.progress = function (action, done, total) {

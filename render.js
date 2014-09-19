@@ -290,15 +290,36 @@ var Viewer = function () {
         }
     };
 
-    Viewer.prototype.showValueTypes = function (state, progress, index) {
-
-        var container = this.controls.renderOutputElement.selector,
-            elements = $(container + " .value"),
-            that = this;
-        this.cancelAction('showTypes');
-        if (!index) {
-            this.oneshot = true;
+    Viewer.prototype.getElementInView = function () {
+        var container = this.controls.renderOutputElement,
+            elements = container.find("*"),
+            offset = -666,
             index = 0;
+        while (offset < -1) {
+            offset = $(elements[index]).offset().top - container.offset().top;
+            index++;
+        }
+        console.log('referencing view to:', elements[index]);
+//        console.log($(elements[index]).selector);
+        return {element: $(elements[index]), offset: offset};
+    };
+    Viewer.prototype.recoverView = function (container, view) {
+        var offset = view.element.offset().top - container.offset().top;
+        container.scrollTop(container.scrollTop() + offset - view.offset);
+        console.log('restoring view to:', view.element[0]);
+
+    };
+
+    Viewer.prototype.showValueTypes = function (state, progress, index, view) {
+        var container = this.controls.renderOutputElement,
+            elements = container.find(".value"),
+            that = this;
+
+        if (!index) {
+            index = 0;
+            this.cancelAction('showTypes');
+            this.oneshot = true;
+            view = this.getElementInView();
         }
         this.showTypes = state;
         this.timestamp = new Date().getTime();
@@ -310,27 +331,29 @@ var Viewer = function () {
             }
             index++;
         }
-        if (index <= elements.length && !this.cacnelAction) {
+        this.recoverView(container, view);
+        if (index <= elements.length) {
             this.progress("Showing value types...", index, elements.length);
             this.typesTimeout = setTimeout(function () {
-                that.showValueTypes(state, progress, index);
+                that.showValueTypes(state, progress, index, view);
             }, 1);
         } else {
             if (!this.oneshot) {
                 this.progress();
             }
+            console.log('returning view to', view.element);
         }
     };
 
-    Viewer.prototype.showArrayIndex = function (state, progress, index) {
-        var container = this.controls.renderOutputElement.selector,
-            elements = $(container + " ol"),
+    Viewer.prototype.showArrayIndex = function (state, progress, index, view) {
+        var container = this.controls.renderOutputElement,
+            elements = container.find("ol"),
             that = this;
-        this.cancelAction('showIndex');
         if (!index) {
             index = 0;
-            this.cacnelAction = true;
+            this.cancelAction('showIndex');
             this.oneshot = true;
+            view = this.inView = this.getElementInView();
         }
         this.showIndex = state;
         this.timestamp = new Date().getTime();
@@ -343,11 +366,11 @@ var Viewer = function () {
             }
             index++;
         }
-
-        if (index <= elements.length && !this.cacnelAction) {
+        this.recoverView(container, view);
+        if (index <= elements.length) {
             this.progress("Showing array indexes...", index, elements.length);
             this.indexTimeout = setTimeout(function () {
-                that.showArrayIndex(state, progress, index);
+                that.showArrayIndex(state, progress, index, view);
             }, 1);
         } else {
             if (!this.oneshot) {

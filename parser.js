@@ -5,11 +5,7 @@ var Parser = function () {
      * @param params {object}
      * @constructor
      */
-    var Parser = function (params) {
-        this.enableLogs;
-        if (self.document !== undefined) {
-            this.enableLogs = params.enableLogs;
-        }
+    var Parser = function () {
     };
     Parser.prototype.repeatString = function (string, num) {
         return new Array(num + 1).join(string);

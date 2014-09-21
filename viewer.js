@@ -64,7 +64,7 @@ var Viewer = function () {
      */
     Viewer.prototype.bindNoWorkerEvents = function () {
         var that = this;
-        parser = new Parser({enableLogs: this.controls.enableLogs});
+        parser = new Parser();
 
         $(document).on('click', this.controls.prettifyButton.selector, function () {
             that.controls.inputElement.val(parser.prettify(that.controls.inputElement.val()));
@@ -151,10 +151,6 @@ var Viewer = function () {
                     break;
             }
         };
-
-        msg.action = "log";
-        msg.data = this.controls.enableLogs;
-        w.postMessage(JSON.stringify(msg));
 
         msg.action = "parse";
         msg.data = $('#input').val();

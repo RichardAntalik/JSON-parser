@@ -1,5 +1,5 @@
 /*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false */
-//TODO:
+//TODO: disable buttons, when collapsing/expanding?
 
 var Viewer = function () {
     "use strict";
@@ -49,8 +49,8 @@ var Viewer = function () {
      */
     Viewer.prototype.startWorker = function () {
 
-        if (typeof Worker !== "undefined") {
-            if (typeof w === "undefined") {
+        if (Worker !== undefined) {
+            if (w === undefined) {
                 try {
                     w = new Worker("worker.js");
                 } catch (err) {
@@ -508,9 +508,6 @@ var Viewer = function () {
     /**
      * Toogles "show" style of elements with "value" style in Viewer.controls.renderOutputElement
      * @param state {boolean} toogle on/off
-     * @param index {number} do not set!
-     * @param view {object} do not set!
-     * @param oneshot do not set!
      */
     Viewer.prototype.showValueTypes = function (state) {
         viewerLogger.enter('showValueTypes');
@@ -533,9 +530,6 @@ var Viewer = function () {
     /**
      * Toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
      * @param state {boolean} toogle on/off
-     * @param index {number} do not set!
-     * @param view {object} do not set!
-     * @param oneshot do not set!
      */
     Viewer.prototype.showArrayIndex = function (state) {
         var that = this,
@@ -556,10 +550,17 @@ var Viewer = function () {
         this.recoverView(container, view);
         viewerLogger.exit();
     };
-
+    /**
+     * Iterate over elements with timeouts
+     * @param elements {jQuery}
+     * @param timerID
+     * @param callback {function(index, element)}
+     * @param action {string} text for progressbar
+     * @param index {number=} sets by iterating - do not set!
+     * @param oneshot {boolean=} sets by iterating - do not set!
+     */
     Viewer.prototype.eachElement = function (elements, timerID, callback, action, index, oneshot) {
-        var container = this.controls.renderOutputElement,
-            that = this;
+        var that = this;
 
         if (!index) {
             index = 0;
@@ -567,7 +568,7 @@ var Viewer = function () {
         }
         this.timestamp = new Date().getTime();
         while (index <= elements.length && !this.isTimeToInterrupt()) {
-            callback(index, elements[index])
+            callback(index, elements[index]);
             index++;
         }
         if (index < elements.length) {
@@ -582,16 +583,19 @@ var Viewer = function () {
             }
         }
     };
-
-
+    /**
+     * Collapse JSON tree
+     */
     Viewer.prototype.collapseAll = function () {
         var that = this,
-        elements = this.controls.renderOutputElement.find('.expanded');
+            elements = this.controls.renderOutputElement.find('.expanded');
         this.eachElement(elements, "", function (index, element) {
             that.toogleList($(element));
         }, 'Collapsing JSON tree...');
     };
-
+    /**
+     * Expand JSON tree
+     */
     Viewer.prototype.expandAll = function () {
         var that = this,
             elements;

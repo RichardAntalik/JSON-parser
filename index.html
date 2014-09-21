@@ -156,6 +156,8 @@
     <input type="button" id="minify" value="Minify"/>
     <label for="types">show types</label><input type="checkbox" id="types"/>
     <label for="index">show index</label><input type="checkbox" id="index"/>
+    <input type="button" id="expand" value="Expand all fields"/>
+    <input type="button" id="collapse" value="collapse all fields"/>
 
     <div id="progressbar">
         <div id="label" class="progress-label"></div>
@@ -178,6 +180,8 @@
                     inputElement: $('#input'),
                     prettifyButton: $('#prettify'),
                     minifyButton: $('#minify'),
+                    expandButton: $('#expand'),
+                    collapseButton: $('#collapse'),
                     renderOutputElement: $('#output'),
                     errorOutput: $('#err'),
                     showTypesCheckbox: $('#types'),

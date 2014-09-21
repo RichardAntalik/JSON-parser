@@ -1,5 +1,5 @@
 /*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false */
-//TODO: element walker, find fn
+//TODO:
 
 var Viewer = function () {
     "use strict";
@@ -14,6 +14,12 @@ var Viewer = function () {
         this.showTypes = controls.showTypesCheckbox.prop("checked");
         this.showIndex = controls.showArrayIndexCheckbox.prop("checked");
 
+        $(document).on('click', controls.collapseButton.selector, function () {
+            that.collapseAll();
+        });
+        $(document).on('click', controls.expandButton.selector, function () {
+            that.expandAll();
+        });
         $(document).on('click', controls.showTypesCheckbox.selector, function () {
             that.showValueTypes($(this).prop("checked"));
         });
@@ -170,6 +176,7 @@ var Viewer = function () {
             percent = Math.round((done / total) * 100);
         }
         viewerLogger.debug("Progressbar:", [done, total]);
+        console.log("Progressbar:", done, total);
 
         this.progressbarAction = action;
         this.progressbar.stop(true, true);
@@ -180,15 +187,16 @@ var Viewer = function () {
      * Render jsonImage
      * @param jsonImage {object} jsonImage
      * @param rootElement {jQuery} render to this element
-     * @param oneshot {boolean} do not set! when unset, function initialize variables for first run
+     * @param oneshot {boolean} do not set unless route is initialized
+     * @param callback {function} done callback
      */
-    Viewer.prototype.render = function (jsonImage, rootElement, oneshot) {
+    Viewer.prototype.render = function (jsonImage, rootElement, oneshot, callback) {
         viewerLogger.enter('render');
 
         var that = this,
             index = 1,
             interrupt = false;
-        if (typeof oneshot === "undefined") {
+        if (oneshot === undefined) {
             this.cancelAction('render');
             this.route = [];
 
@@ -203,6 +211,8 @@ var Viewer = function () {
                 jsonImage = jsonImage.jsonImage;
                 index = 0;
             }
+            callback = function () {
+            };
             oneshot = true;
             this.valueCount = 0;
             this.imageValueCount = this.getValueCount(jsonImage);
@@ -211,7 +221,6 @@ var Viewer = function () {
         }
 
         this.timestamp = new Date().getTime();
-
         while (this.route.length && !interrupt) {
             this.renderList();
             interrupt = this.renderValues();
@@ -223,8 +232,10 @@ var Viewer = function () {
         if (this.route.length) {
             oneshot = false;
             this.renderTimeout = setTimeout(function () {
-                that.render(jsonImage, "", oneshot);
+                that.render(jsonImage, "", oneshot, callback);
             }, 5);
+        } else {
+            callback();
         }
         viewerLogger.exit();
     };
@@ -468,7 +479,7 @@ var Viewer = function () {
     Viewer.prototype.getElementInView = function () {
         viewerLogger.enter('getElementInView');
         var container = this.controls.renderOutputElement,
-            elements = container.find("*"),
+            elements = container.find("span"),
             offset = -666,
             index = 0;
         while (offset < -1) {
@@ -492,95 +503,128 @@ var Viewer = function () {
         viewerLogger.debug('restoring view to:', view.element[0]);
         viewerLogger.exit();
     };
+
+
     /**
-     * toogles "show" style of elements with "value" style in Viewer.controls.renderOutputElement
+     * Toogles "show" style of elements with "value" style in Viewer.controls.renderOutputElement
      * @param state {boolean} toogle on/off
      * @param index {number} do not set!
      * @param view {object} do not set!
      * @param oneshot do not set!
      */
-    Viewer.prototype.showValueTypes = function (state, index, view, oneshot) {
+    Viewer.prototype.showValueTypes = function (state) {
         viewerLogger.enter('showValueTypes');
-        var container = this.controls.renderOutputElement,
-            elements = container.find(".value"),
-            that = this;
-
-        if (!index) {
-            this.cancelAction('showTypes');
-            index = 0;
-            oneshot = true;
-            view = this.getElementInView();
-        }
+        var that = this,
+            view = this.getElementInView(),
+            container = this.controls.renderOutputElement;
         this.showTypes = state;
-        this.timestamp = new Date().getTime();
-        while (index <= elements.length && !this.isTimeToInterrupt()) {
-            if (state) {
-                $(elements[index]).addClass("show");
+        this.cancelAction('showTypes');
+
+        this.eachElement(container.find('.value'), this.typesTimeout, function (index, element) {
+            if (that.showTypes) {
+                $(element).addClass("show");
             } else {
-                $(elements[index]).removeClass("show");
+                $(element).removeClass("show");
             }
-            index++;
-        }
+        }, 'Showing value types...');
         this.recoverView(container, view);
-        if (index <= elements.length) {
-            this.progress("Showing value types...", index, elements.length);
-            this.typesTimeout = setTimeout(function () {
-                that.showValueTypes(state, index, view, oneshot);
-            }, 1);
-        } else {
-            if (!oneshot) {
-                this.progress();
-            }
-        }
         viewerLogger.exit();
     };
     /**
-     * toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
+     * Toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
      * @param state {boolean} toogle on/off
      * @param index {number} do not set!
      * @param view {object} do not set!
      * @param oneshot do not set!
      */
-    Viewer.prototype.showArrayIndex = function (state, index, view, oneshot) {
+    Viewer.prototype.showArrayIndex = function (state) {
+        var that = this,
+            view = this.getElementInView(),
+            container = this.controls.renderOutputElement;
+
         viewerLogger.enter('showArrayIndex');
+        this.showIndex = state;
+        this.cancelAction('showIndex');
+        this.eachElement(container.find('ol'), this.indexTimeout, function (index, element) {
+            if (that.showIndex) {
+                $(element).css('list-style', 'decimal');
+                $(element).attr("start", "0");
+            } else {
+                $(element).css('list-style', 'none');
+            }
+        }, 'Showing array indexes...');
+        this.recoverView(container, view);
+        viewerLogger.exit();
+    };
+
+    Viewer.prototype.eachElement = function (elements, timerID, callback, action, index, oneshot) {
         var container = this.controls.renderOutputElement,
-            elements = container.find("ol"),
             that = this;
+
         if (!index) {
-            this.cancelAction('showIndex');
             index = 0;
             oneshot = true;
-            view = this.getElementInView();
         }
-        this.showIndex = state;
         this.timestamp = new Date().getTime();
         while (index <= elements.length && !this.isTimeToInterrupt()) {
-            if (state) {
-                $(elements[index]).css('list-style', 'decimal');
-                $(elements[index]).attr("start", "0");
-            } else {
-                $(elements[index]).css('list-style', 'none');
-            }
+            callback(index, elements[index])
             index++;
         }
-        this.recoverView(container, view);
-        if (index <= elements.length) {
-            this.progress("Showing array indexes...", index, elements.length);
-            this.indexTimeout = setTimeout(function () {
-                that.showArrayIndex(state, index, view, oneshot);
+        if (index < elements.length) {
+            this.progress(action, index, elements.length);
+            oneshot = false;
+            timerID = setTimeout(function () {
+                that.eachElement(elements, timerID, callback, action, index, oneshot);
             }, 1);
         } else {
             if (!oneshot) {
                 this.progress();
             }
         }
-        viewerLogger.exit();
+    };
+
+
+    Viewer.prototype.collapseAll = function () {
+        var that = this,
+        elements = this.controls.renderOutputElement.find('.expanded');
+        this.eachElement(elements, "", function (index, element) {
+            that.toogleList($(element));
+        }, 'Collapsing JSON tree...');
+    };
+
+    Viewer.prototype.expandAll = function () {
+        var that = this,
+            elements;
+        this.maxcount = this.controls.renderMaxCount;
+        this.controls.renderMaxCount = Infinity;
+        this.valueCount = 0;
+        this.imageValueCount = 0;
+        this.multiroute = [];
+        elements = this.controls.renderOutputElement.find('.empty');
+        elements.each(function (index, element) {
+            var image = that.getRootImage($(element).parent());
+            that.multiroute.push({actual: image, index: 1, tag: $(element).parent().find('.list')});
+            $(element).removeClass('empty');
+            that.toogleList($(element));
+            that.imageValueCount += that.getValueCount(image);
+        });
+        this.route = this.multiroute;
+        this.render('', '', true, function () {
+            that.controls.renderMaxCount = that.maxcount;
+            var elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
+            that.eachElement(elements, "", function (index, element) {
+                that.toogleList($(element));
+            }, 'Expanding JSON tree...');
+
+        });
+
     };
     /**
      * Toogles expanded/collapsed view in json tree
      * @param toogleBtnElement {jQuery}
      */
     Viewer.prototype.toogleList = function (toogleBtnElement) {
+        var image;
         viewerLogger.enter('toogleList');
         viewerLogger.debug('Toogling', toogleBtnElement);
         if (toogleBtnElement.hasClass("expanded")) {
@@ -596,21 +640,23 @@ var Viewer = function () {
         }
         if (toogleBtnElement.hasClass("empty")) {
             toogleBtnElement.removeClass('empty');
-            this.renderToEmptyList(toogleBtnElement.parent());
+            image = this.getRootImage(toogleBtnElement.parent());
+            this.render(image, toogleBtnElement.parent().find('.list'));
         }
         viewerLogger.exit();
     };
     /**
-     * On-demand rendering of json tree
+     * Gets sub-jsonImage for on-demand rendering of json tree
      * @param itemElement {jQuery}
+     * @returns {jsonImage}
      */
-    Viewer.prototype.renderToEmptyList = function (itemElement) {
-        viewerLogger.enter('renderToEmptyList');
+    Viewer.prototype.getRootImage = function (itemElement) {
+        viewerLogger.enter('getRootImage');
         var trace = [],
-            image,
-            rootElement = itemElement.find('.list');
+            image;
+        //rootElement = itemElement.find('.list');
         while (itemElement.prop("tagName") === 'LI') {
-            viewerLogger.debug('Looking up root:', itemElement);
+            viewerLogger.debug('Looking up root element:', itemElement);
             trace.push(itemElement.attr('data-index'));
             itemElement = itemElement.parent().parent();
         }
@@ -620,8 +666,8 @@ var Viewer = function () {
             viewerLogger.debug('Looking up image:', [image]);
             trace.pop();
         }
-        this.render(image, rootElement);
         viewerLogger.exit();
+        return image;
     };
     /**
      * Counts values that needs to be rendered if value count of jsonImage exceeds Viewer.controls.renderMaxCount

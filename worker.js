@@ -1,7 +1,6 @@
 importScripts("parser.js");
 
 var parser = new Parser();
-parser.logsEnabled = false;
 
 onmessage = function (oEvent) {
     var msg = {};
@@ -9,7 +8,7 @@ onmessage = function (oEvent) {
 
     switch (msg.action) {
         case "parse":
-            jsonImage = parser.parseJson(msg.data);
+            var jsonImage = parser.parseJson(msg.data);
             msg.data = jsonImage;
             msg.oneshot = parser.oneshot;
             postMessage(JSON.stringify(msg));
@@ -25,5 +24,7 @@ onmessage = function (oEvent) {
             msg.oneshot = parser.oneshot;
             postMessage(JSON.stringify(msg));
             break;
+        case "log":
+            parser.enableLogs = msg.data;
     }
 };

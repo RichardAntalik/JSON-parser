@@ -2,9 +2,14 @@
 var Parser = function () {
     "use strict";
     /**
+     * @param params {object}
      * @constructor
      */
-    var Parser = function () {
+    var Parser = function (params) {
+        this.enableLogs;
+        if (self.document !== undefined) {
+            this.enableLogs = params.enableLogs;
+        }
     };
     Parser.prototype.repeatString = function (string, num) {
         return new Array(num + 1).join(string);
@@ -485,7 +490,7 @@ var Parser = function () {
     };
 
     Parser.prototype.sendLog = function () {
-        if (this.logsEnabled) {
+        if (this.enableLogs) {
             var msg = {};
             msg.action = "log";
             var args = Array.prototype.slice.call(arguments);  //OMG this thing is such slow...
@@ -493,31 +498,31 @@ var Parser = function () {
             if (self.document === undefined) {
                 postMessage(JSON.stringify(msg));
             } else {
-                console.log(msg.data);
+                parserLogger.info(msg.data);
             }
         }
     };
     Parser.prototype.sendGroup = function (group) {
-        if (this.logsEnabled) {
+        if (this.enableLogs) {
             var msg = {};
             msg.action = "group";
             msg.data = group;
             if (self.document === undefined) {
                 postMessage(JSON.stringify(msg));
             } else {
-                console.group(msg.data);
+                parserLogger.enter(msg.data);
             }
         }
     };
     Parser.prototype.sendGroupEnd = function (group) {
-        if (this.logsEnabled) {
+        if (this.enableLogs) {
             var msg = {};
             msg.action = "groupEnd";
             msg.data = group;
             if (self.document === undefined) {
                 postMessage(JSON.stringify(msg));
             } else {
-                console.groupEnd(msg.data);
+                parserLogger.exit(msg.data);
             }
         }
     };

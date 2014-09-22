@@ -1,15 +1,22 @@
-/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false */
+/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, parserLogger:false, viewerLogger:false */
 //TODO: disable buttons, when collapsing/expanding?
 
 var Viewer = function () {
     "use strict";
+
     /**
+     * @param controls {object}
      * @constructor
-     *
      */
     var Viewer = function (controls) {
-
         var that = this;
+        this.timeoutId = [];
+        this.timers = {
+            render: 1,
+            showTypes: 2,
+            showIndex: 3,
+            unused: 4
+        };
         this.controls = controls;
         this.showTypes = controls.showTypesCheckbox.prop("checked");
         this.showIndex = controls.showArrayIndexCheckbox.prop("checked");
@@ -66,7 +73,7 @@ var Viewer = function () {
         }
     };
     /**
-     * Bind functions to events without worker support
+     * Bind functions to events with no worker support
      */
     Viewer.prototype.bindNoWorkerEvents = function () {
         var that = this;
@@ -231,7 +238,7 @@ var Viewer = function () {
         }
         if (this.route.length) {
             oneshot = false;
-            this.renderTimeout = setTimeout(function () {
+            this.timeoutId[this.timers.render] = setTimeout(function () {
                 that.render(jsonImage, "", oneshot, callback);
             }, 5);
         } else {
@@ -517,7 +524,7 @@ var Viewer = function () {
         this.showTypes = state;
         this.cancelAction('showTypes');
 
-        this.eachElement(container.find('.value'), this.typesTimeout, function (index, element) {
+        this.eachElement(container.find('.value'), this.timers.showTypes, function (index, element) {
             if (that.showTypes) {
                 $(element).addClass("show");
             } else {
@@ -539,7 +546,7 @@ var Viewer = function () {
         viewerLogger.enter('showArrayIndex');
         this.showIndex = state;
         this.cancelAction('showIndex');
-        this.eachElement(container.find('ol'), this.indexTimeout, function (index, element) {
+        this.eachElement(container.find('ol'), this.timers.showIndex, function (index, element) {
             if (that.showIndex) {
                 $(element).css('list-style', 'decimal');
                 $(element).attr("start", "0");
@@ -574,7 +581,7 @@ var Viewer = function () {
         if (index < elements.length) {
             this.progress(action, index, elements.length);
             oneshot = false;
-            timerID = setTimeout(function () {
+            this.timeoutId[action] = setTimeout(function () {
                 that.eachElement(elements, timerID, callback, action, index, oneshot);
             }, 1);
         } else {
@@ -584,17 +591,17 @@ var Viewer = function () {
         }
     };
     /**
-     * Collapse JSON tree
+     * Collapses JSON tree
      */
     Viewer.prototype.collapseAll = function () {
         var that = this,
             elements = this.controls.renderOutputElement.find('.expanded');
-        this.eachElement(elements, "", function (index, element) {
+        this.eachElement(elements, this.timers.unused, function (index, element) {
             that.toogleList($(element));
         }, 'Collapsing JSON tree...');
     };
     /**
-     * Expand JSON tree
+     * Expands JSON tree
      */
     Viewer.prototype.expandAll = function () {
         var that = this,
@@ -616,7 +623,7 @@ var Viewer = function () {
         this.render('', '', true, function () {
             that.controls.renderMaxCount = that.maxcount;
             var elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
-            that.eachElement(elements, "", function (index, element) {
+            that.eachElement(elements, that.timers.unused, function (index, element) {
                 that.toogleList($(element));
             }, 'Expanding JSON tree...');
 

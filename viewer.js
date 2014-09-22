@@ -1,7 +1,5 @@
-/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, parserLogger:false, this.logger:false */
-//TODO: disable buttons, when collapsing/expanding?
-
-var Viewer = function () {
+/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, ODT:false*/
+var Viewer = (function () {
     "use strict";
 
     /**
@@ -81,7 +79,8 @@ var Viewer = function () {
      */
     Viewer.prototype.bindNoWorkerEvents = function (logger) {
         var that = this,
-        parser = new Parser(logger);
+            jsonImage,
+            parser = new Parser(logger);
 
         $(document).on('click', this.controls.prettifyButton.selector, function () {
             that.controls.inputElement.val(parser.prettify(that.controls.inputElement.val()));
@@ -92,12 +91,12 @@ var Viewer = function () {
         });
 
         that.controls.inputElement.bind('input propertychange', function () {
-            var jsonImage = parser.parseJson(that.controls.inputElement.val());
+            jsonImage = parser.parseJson(that.controls.inputElement.val());
             that.render(jsonImage, that.controls.renderOutputElement);
             that.jsonImage = jsonImage;
         });
 
-        var jsonImage = parser.parseJson(that.controls.inputElement.val());
+        jsonImage = parser.parseJson(that.controls.inputElement.val());
         this.render(jsonImage, this.controls.renderOutputElement);
         this.jsonImage = jsonImage;
 
@@ -110,21 +109,18 @@ var Viewer = function () {
             msg = {};
 
         $(document).on('click', this.controls.prettifyButton.selector, function () {
-            var msg = {};
             msg.action = "prettify";
             msg.data = that.controls.inputElement.val();
             worker.postMessage(JSON.stringify(msg));
         });
 
         $(document).on('click', this.controls.minifyButton.selector, function () {
-            var msg = {};
             msg.action = "minify";
             msg.data = that.controls.inputElement.val();
             worker.postMessage(JSON.stringify(msg));
         });
 
         that.controls.inputElement.bind('input propertychange', function () {
-            var msg = {};
             msg.action = "parse";
             msg.data = that.controls.inputElement.val();
             worker.postMessage(JSON.stringify(msg));
@@ -139,19 +135,19 @@ var Viewer = function () {
                     that.jsonImage = msg.data;
 
                     if (!msg.oneshot) {
-                        viewer.progress();
+                        that.progress();
                     }
                     break;
                 case "minify":
                     that.controls.inputElement.val(msg.data);
                     if (!msg.oneshot) {
-                        viewer.progress();
+                        that.progress();
                     }
                     break;
                 case "prettify":
                     that.controls.inputElement.val(msg.data);
                     if (!msg.oneshot) {
-                        viewer.progress();
+                        that.progress();
                     }
                     break;
                 case 'log':
@@ -164,7 +160,7 @@ var Viewer = function () {
                     logger.exit(msg.data);
                     break;
                 default:
-                    viewer.progress(msg.action, msg.processed, msg.total);
+                    that.progress(msg.action, msg.processed, msg.total);
                     break;
             }
         };
@@ -223,6 +219,7 @@ var Viewer = function () {
                 index = 0;
             }
             callback = function () {
+                return undefined;
             };
             oneshot = true;
             this.valueCount = 0;
@@ -500,7 +497,6 @@ var Viewer = function () {
         }
         this.logger.debug('referencing view to:', elements[index]);
         this.logger.exit();
-//        this.logger.debug($(elements[index]).selector);
         return {element: $(elements[index]), offset: offset};
     };
     /**
@@ -631,7 +627,7 @@ var Viewer = function () {
         this.route = this.multiroute;
         this.render('', '', true, function () {
             that.controls.renderMaxCount = that.maxcount;
-            var elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
+            elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
             that.eachElement(elements, that.timers.unused, function (index, element) {
                 that.toogleList($(element));
             }, 'Expanding JSON tree...');
@@ -769,4 +765,4 @@ var Viewer = function () {
         return "object";
     };
     return Viewer;
-}();
+}());

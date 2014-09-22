@@ -1,5 +1,4 @@
-//TODO: log sender
-var Parser = function () {
+var Parser = (function () {
     "use strict";
     /**
      * @param params {object} logger
@@ -542,6 +541,6 @@ var Parser = function () {
         }
     };
     return Parser;
-}();
+}());
 
 

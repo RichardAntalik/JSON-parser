@@ -130,7 +130,7 @@ var Viewer = (function () {
             msg = JSON.parse(event.data);
             switch (msg.action) {
                 case "parse":
-                    that.cancelAction('render');
+                    that.cancelAction(that.timers.render);
                     that.render(msg.data, that.controls.renderOutputElement);
                     that.jsonImage = msg.data;
 
@@ -204,11 +204,9 @@ var Viewer = (function () {
         var that = this,
             index = 1,
             interrupt = false;
-
         this.controls.expandButton.attr("disabled", true);
-
         if (oneshot === undefined) {
-            this.cancelAction('render');
+            this.cancelAction(this.timers.render);
             this.route = [];
 
             if (this.typeOf(jsonImage) === 'object') {
@@ -231,13 +229,11 @@ var Viewer = (function () {
             this.route.push({actual: jsonImage, index: index, tag: rootElement});
             this.logger.debug('render start:', this.route[0]);
         }
-
         this.timestamp = new Date().getTime();
         while (this.route.length && !interrupt) {
             this.renderList();
             interrupt = this.renderValues();
         }
-
         if (!oneshot) {
             this.progress("Rendering...", this.valueCount, this.imageValueCount);
         }
@@ -266,9 +262,7 @@ var Viewer = (function () {
 
         while (route.index < route.actual.length && !interrupt) {
             interrupt = this.isTimeToInterrupt();
-
             this.valueCount++;
-
             if (route.type === "object") {
                 name = route.actual[route.index].name;
             }
@@ -304,9 +298,7 @@ var Viewer = (function () {
         this.logger.enter('createItemElement');
         var nameElement,
             valueElement,
-
             itemElement = $('<li data-index="' + index + '" />');
-
         if (name) {
             nameElement = $('<span class="property"/>');
             nameElement.text(name);
@@ -337,13 +329,10 @@ var Viewer = (function () {
         var listElement,
             route = this.getRoute();
 
-
         if (route.index === 0) {
             this.route[this.route.length - 1].index++;
-
             listElement = this.createListElement(route);
             this.route[this.route.length - 1].tag = listElement;
-
             if (route.indexbefore < route.before.length) {
                 route.tag.append(',');
             }
@@ -363,7 +352,6 @@ var Viewer = (function () {
         var elementStrings,
             listElement,
             valueElement;
-
         if (route.type === "object") {
             elementStrings = {
                 open: '{',
@@ -393,7 +381,6 @@ var Viewer = (function () {
         if (this.showTypes) {
             valueElement.addClass('show');
         }
-
         if (this.valueCount > this.controls.renderMaxCount) {
             this.toogleList(valueElement);
             valueElement.addClass('empty');
@@ -415,7 +402,6 @@ var Viewer = (function () {
             before,
             indexbefore,
             route;
-
         if (this.route.length >= 2) {
             before = this.route[this.route.length - 2].actual;
             indexbefore = this.route[this.route.length - 2].index;
@@ -434,7 +420,6 @@ var Viewer = (function () {
             before: before,
             indexbefore: indexbefore
         };
-
         this.logger.debug('Route:', route);
         this.logger.exit();
         return route;
@@ -492,16 +477,16 @@ var Viewer = (function () {
     Viewer.prototype.getElementInView = function () {
         this.logger.enter('getElementInView');
         var container = this.controls.renderOutputElement,
-            elements = container.find("span"),
+            elements = container.find(".value"),
             offset = -666,
             index = 0;
-        while (offset < -1) {
+        while (offset < -1 && index < elements.length) {
             offset = $(elements[index]).offset().top - container.offset().top;
             index++;
         }
-        this.logger.debug('referencing view to:', elements[index]);
+        this.logger.debug('referencing view to:', [elements[index-1], offset]);
         this.logger.exit();
-        return {element: $(elements[index]), offset: offset};
+        return {element: $(elements[index-1]), offset: offset};
     };
     /**
      * Scrolls to element view.element and offsets by view.offset
@@ -512,11 +497,9 @@ var Viewer = (function () {
         this.logger.enter('recoverView');
         var offset = view.element.offset().top - container.offset().top;
         container.scrollTop(container.scrollTop() + offset - view.offset);
-        this.logger.debug('restoring view to:', view.element[0]);
+        this.logger.debug('restoring view to:', [view.element[0], offset] );
         this.logger.exit();
     };
-
-
     /**
      * Toogles "show" style of elements with "value" style in Viewer.controls.renderOutputElement
      * @param state {boolean} toogle on/off
@@ -527,16 +510,18 @@ var Viewer = (function () {
             view = this.getElementInView(),
             container = this.controls.renderOutputElement;
         this.showTypes = state;
-        this.cancelAction('showTypes');
+        this.cancelAction(this.timers.showTypes);
 
-        this.eachElement(container.find('.value'), this.timers.showTypes, function (index, element) {
+        this.eachElement(container.find('.value'), this.timers.showTypes, function (element, interrupt, index, total) {
             if (that.showTypes) {
                 $(element).addClass("show");
             } else {
                 $(element).removeClass("show");
             }
+            if (index === total-1 || interrupt) {
+                that.recoverView(container, view);
+            }
         }, 'Showing value types...');
-        this.recoverView(container, view);
         this.logger.exit();
     };
     /**
@@ -546,11 +531,10 @@ var Viewer = (function () {
     Viewer.prototype.showArrayIndex = function (state) {
         this.logger.enter('showArrayIndex');
         var that = this,
-            view = this.getElementInView(),
             container = this.controls.renderOutputElement;
         this.showIndex = state;
-        this.cancelAction('showIndex');
-        this.eachElement(container.find('ol'), this.timers.showIndex, function (index, element) {
+        this.cancelAction(this.timers.index);
+        this.eachElement(container.find('ol'), this.timers.showIndex, function (element) {
             if (that.showIndex) {
                 $(element).css('list-style', 'decimal');
                 $(element).attr("start", "0");
@@ -558,7 +542,6 @@ var Viewer = (function () {
                 $(element).css('list-style', 'none');
             }
         }, 'Showing array indexes...');
-        this.recoverView(container, view);
         this.logger.exit();
     };
     /**
@@ -571,16 +554,18 @@ var Viewer = (function () {
      * @param oneshot {boolean=} sets by iterating - do not set!
      */
     Viewer.prototype.eachElement = function (elements, timer, callback, action, index, oneshot) {
-        this.logger.enter('toogleList');
-        var that = this;
+        this.logger.enter('eachElement');
+        var that = this,
+            interrupt;
 
         if (!index) {
             index = 0;
             oneshot = true;
         }
         this.timestamp = new Date().getTime();
-        while (index <= elements.length && !this.isTimeToInterrupt()) {
-            callback(index, elements[index]);
+        while (index <= elements.length && !interrupt) {
+            interrupt = this.isTimeToInterrupt();
+            callback(elements[index], interrupt, index, elements.length);
             index++;
         }
         if (index < elements.length) {
@@ -600,10 +585,10 @@ var Viewer = (function () {
      * Collapses JSON tree
      */
     Viewer.prototype.collapseAll = function () {
-        this.logger.enter('toogleList');
+        this.logger.enter('collapseAll');
         var that = this,
             elements = this.controls.renderOutputElement.find('.expanded');
-        this.eachElement(elements, this.timers.unused, function (index, element) {
+        this.eachElement(elements, this.timers.unused, function (element) {
             that.toogleList($(element));
         }, 'Collapsing JSON tree...');
         this.logger.exit();
@@ -612,7 +597,7 @@ var Viewer = (function () {
      * Expands JSON tree
      */
     Viewer.prototype.expandAll = function () {
-        this.logger.enter('toogleList');
+        this.logger.enter('expandAll');
         var that = this,
             elements;
         this.maxcount = this.controls.renderMaxCount;
@@ -632,10 +617,9 @@ var Viewer = (function () {
         this.render('', '', true, function () {
             that.controls.renderMaxCount = that.maxcount;
             elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
-            that.eachElement(elements, that.timers.unused, function (index, element) {
+            that.eachElement(elements, that.timers.unused, function (element) {
                 that.toogleList($(element));
             }, 'Expanding JSON tree...');
-
         });
         this.logger.exit();
     };
@@ -731,24 +715,10 @@ var Viewer = (function () {
      * Cancel running action
      * @param action {string} "render" | "showTypes" | "showIndex"
      */
-    Viewer.prototype.cancelAction = function (action) {
+    Viewer.prototype.cancelAction = function (timerId) {
         this.logger.enter('cancelAction');
-        var id;
-        switch (action) {
-            case 'render':
-                id = this.renderTimeout;
-                break;
-            case 'showTypes':
-                id = this.typesTimeout;
-                break;
-            case 'showIndex':
-                id = this.indexTimeout;
-                break;
-            default :
-                break;
-        }
-        clearTimeout(id);
-        this.logger.debug('Cleared Timeout ID', id);
+        clearTimeout(this.timeoutId[timerId]);
+        this.logger.debug('Cleared Timeout ID', this.timeoutId[timerId]);
         this.logger.exit();
     };
     /**

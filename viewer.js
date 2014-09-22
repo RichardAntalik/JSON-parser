@@ -1,4 +1,4 @@
-/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, parserLogger:false, viewerLogger:false */
+/*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, parserLogger:false, this.logger:false */
 //TODO: disable buttons, when collapsing/expanding?
 
 var Viewer = function () {
@@ -10,6 +10,7 @@ var Viewer = function () {
      */
     var Viewer = function (controls) {
         var that = this;
+        this.logger = new ODT.Logger('Viewer');
         this.timeoutId = [];
         this.timers = {
             render: 1,
@@ -55,29 +56,32 @@ var Viewer = function () {
      * Initialize worker if available
      */
     Viewer.prototype.startWorker = function () {
-    var worker;
+
+    var worker,
+        parserLogger = new ODT.Logger('Parser');
+
         if (Worker !== undefined) {
             if (worker === undefined) {
                 try {
                     worker = new Worker("worker.js");
                 } catch (err) {
                     console.error(err.message);
-                    this.bindNoWorkerEvents();
+                    this.bindNoWorkerEvents(parserLogger);
                 }
             }
             if (worker) {
-                this.bindWorkerEvents(worker);
+                this.bindWorkerEvents(worker, parserLogger);
             }
         } else {
-            this.bindNoWorkerEvents();
+            this.bindNoWorkerEvents(parserLogger);
         }
     };
     /**
      * Bind functions to events with no worker support
      */
-    Viewer.prototype.bindNoWorkerEvents = function () {
-        var that = this;
-        parser = new Parser();
+    Viewer.prototype.bindNoWorkerEvents = function (logger) {
+        var that = this,
+        parser = new Parser(logger);
 
         $(document).on('click', this.controls.prettifyButton.selector, function () {
             that.controls.inputElement.val(parser.prettify(that.controls.inputElement.val()));
@@ -101,7 +105,7 @@ var Viewer = function () {
     /**
      * Bind functions to events with worker support
      */
-    Viewer.prototype.bindWorkerEvents = function (worker) {
+    Viewer.prototype.bindWorkerEvents = function (worker, logger) {
         var that = this,
             msg = {};
 
@@ -151,13 +155,13 @@ var Viewer = function () {
                     }
                     break;
                 case 'log':
-                    parserLogger.debug(msg.data);
+                    logger.debug(msg.data);
                     break;
                 case 'group':
-                    parserLogger.enter(msg.data);
+                    logger.enter(msg.data);
                     break;
                 case 'groupEnd':
-                    parserLogger.exit(msg.data);
+                    logger.exit(msg.data);
                     break;
                 default:
                     viewer.progress(msg.action, msg.processed, msg.total);
@@ -182,7 +186,7 @@ var Viewer = function () {
         } else {
             percent = Math.round((done / total) * 100);
         }
-        viewerLogger.debug("Progressbar:", [done, total]);
+        this.logger.debug("Progressbar:", [done, total]);
         this.progressbarAction = action;
         this.progressbar.stop(true, true);
         this.progressbar.css("display", "block");
@@ -196,7 +200,7 @@ var Viewer = function () {
      * @param callback {function} done callback
      */
     Viewer.prototype.render = function (jsonImage, rootElement, oneshot, callback) {
-        viewerLogger.enter('render');
+        this.logger.enter('render');
         var that = this,
             index = 1,
             interrupt = false;
@@ -224,7 +228,7 @@ var Viewer = function () {
             this.valueCount = 0;
             this.imageValueCount = this.getValueCount(jsonImage);
             this.route.push({actual: jsonImage, index: index, tag: rootElement});
-            viewerLogger.debug('render start:', this.route[0]);
+            this.logger.debug('render start:', this.route[0]);
         }
 
         this.timestamp = new Date().getTime();
@@ -245,14 +249,14 @@ var Viewer = function () {
             this.controls.expandButton.attr("disabled", false);
             callback();
         }
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Renders values of jsonImage
      * @returns {*}
      */
     Viewer.prototype.renderValues = function () {
-        viewerLogger.enter('renderValues');
+        this.logger.enter('renderValues');
         var itemElement,
             value,
             name,
@@ -285,7 +289,7 @@ var Viewer = function () {
         if (route.index >= route.actual.length) {
             this.route.pop();
         }
-        viewerLogger.exit();
+        this.logger.exit();
         return interrupt;
     };
     /**
@@ -296,7 +300,7 @@ var Viewer = function () {
      * @returns {jQuery}
      */
     Viewer.prototype.createItemElement = function (name, value, index) {
-        viewerLogger.enter('createItemElement');
+        this.logger.enter('createItemElement');
         var nameElement,
             valueElement,
 
@@ -320,15 +324,15 @@ var Viewer = function () {
             }
             itemElement.append(valueElement);
         }
-        viewerLogger.debug('Created', itemElement);
-        viewerLogger.exit();
+        this.logger.debug('Created', itemElement);
+        this.logger.exit();
         return itemElement;
     };
     /**
      * Renders <ul> or <ol> element
      */
     Viewer.prototype.renderList = function () {
-        viewerLogger.enter('renderList');
+        this.logger.enter('renderList');
         var listElement,
             route = this.getRoute();
 
@@ -346,7 +350,7 @@ var Viewer = function () {
                 this.route.pop();
             }
         }
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Create <ul> or <ol> element
@@ -354,7 +358,7 @@ var Viewer = function () {
      * @returns {jQuery}
      */
     Viewer.prototype.createListElement = function (route) {
-        viewerLogger.enter('createListElement');
+        this.logger.enter('createListElement');
         var elementStrings,
             listElement,
             valueElement;
@@ -393,8 +397,8 @@ var Viewer = function () {
             this.toogleList(valueElement);
             valueElement.addClass('empty');
         }
-        viewerLogger.debug('Created', listElement);
-        viewerLogger.exit();
+        this.logger.debug('Created', listElement);
+        this.logger.exit();
         return listElement;
     };
     /**
@@ -404,7 +408,7 @@ var Viewer = function () {
      * before: reference to previous jsonImage (sub)object, indexbefore: number
      */
     Viewer.prototype.getRoute = function () {
-        viewerLogger.enter('getRoute');
+        this.logger.enter('getRoute');
         var actual,
             index,
             before,
@@ -430,8 +434,8 @@ var Viewer = function () {
             indexbefore: indexbefore
         };
 
-        viewerLogger.debug('Route:', route);
-        viewerLogger.exit();
+        this.logger.debug('Route:', route);
+        this.logger.exit();
         return route;
     };
     /**
@@ -446,7 +450,7 @@ var Viewer = function () {
             time = 50;
 
         if (timenow > this.timestamp + time || force) {
-            viewerLogger.debug('isTimeToInterrupt: Interrupting!');
+            this.logger.debug('isTimeToInterrupt: Interrupting!');
             this.timestamp = timenow;
             return true;
         }
@@ -457,7 +461,7 @@ var Viewer = function () {
      * @param jsonImage {object}
      */
     Viewer.prototype.renderError = function (jsonImage) {
-        viewerLogger.enter('renderError');
+        this.logger.enter('renderError');
         var description,
             sample;
         if (typeof this.controls.errorOutput === "function") {
@@ -478,14 +482,14 @@ var Viewer = function () {
             sample.text(jsonImage.error.sampleString[2]);
             this.controls.errorOutput.append(sample);
         }
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Gets most top visible element and its offset from top of container defined in Viewer.controls.renderOutputElement
      * @returns {{element: (jQuery), offset: number}}
      */
     Viewer.prototype.getElementInView = function () {
-        viewerLogger.enter('getElementInView');
+        this.logger.enter('getElementInView');
         var container = this.controls.renderOutputElement,
             elements = container.find("span"),
             offset = -666,
@@ -494,9 +498,9 @@ var Viewer = function () {
             offset = $(elements[index]).offset().top - container.offset().top;
             index++;
         }
-        viewerLogger.debug('referencing view to:', elements[index]);
-        viewerLogger.exit();
-//        viewerLogger.debug($(elements[index]).selector);
+        this.logger.debug('referencing view to:', elements[index]);
+        this.logger.exit();
+//        this.logger.debug($(elements[index]).selector);
         return {element: $(elements[index]), offset: offset};
     };
     /**
@@ -505,11 +509,11 @@ var Viewer = function () {
      * @param view {object}
      */
     Viewer.prototype.recoverView = function (container, view) {
-        viewerLogger.enter('recoverView');
+        this.logger.enter('recoverView');
         var offset = view.element.offset().top - container.offset().top;
         container.scrollTop(container.scrollTop() + offset - view.offset);
-        viewerLogger.debug('restoring view to:', view.element[0]);
-        viewerLogger.exit();
+        this.logger.debug('restoring view to:', view.element[0]);
+        this.logger.exit();
     };
 
 
@@ -518,7 +522,7 @@ var Viewer = function () {
      * @param state {boolean} toogle on/off
      */
     Viewer.prototype.showValueTypes = function (state) {
-        viewerLogger.enter('showValueTypes');
+        this.logger.enter('showValueTypes');
         var that = this,
             view = this.getElementInView(),
             container = this.controls.renderOutputElement;
@@ -533,14 +537,14 @@ var Viewer = function () {
             }
         }, 'Showing value types...');
         this.recoverView(container, view);
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * @param state {boolean} toogle on/off
      * Toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
      */
     Viewer.prototype.showArrayIndex = function (state) {
-        viewerLogger.enter('showArrayIndex');
+        this.logger.enter('showArrayIndex');
         var that = this,
             view = this.getElementInView(),
             container = this.controls.renderOutputElement;
@@ -555,7 +559,7 @@ var Viewer = function () {
             }
         }, 'Showing array indexes...');
         this.recoverView(container, view);
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Iterate over elements with timeouts
@@ -567,7 +571,7 @@ var Viewer = function () {
      * @param oneshot {boolean=} sets by iterating - do not set!
      */
     Viewer.prototype.eachElement = function (elements, timer, callback, action, index, oneshot) {
-        viewerLogger.enter('toogleList');
+        this.logger.enter('toogleList');
         var that = this;
 
         if (!index) {
@@ -590,25 +594,25 @@ var Viewer = function () {
                 this.progress();
             }
         }
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Collapses JSON tree
      */
     Viewer.prototype.collapseAll = function () {
-        viewerLogger.enter('toogleList');
+        this.logger.enter('toogleList');
         var that = this,
             elements = this.controls.renderOutputElement.find('.expanded');
         this.eachElement(elements, this.timers.unused, function (index, element) {
             that.toogleList($(element));
         }, 'Collapsing JSON tree...');
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Expands JSON tree
      */
     Viewer.prototype.expandAll = function () {
-        viewerLogger.enter('toogleList');
+        this.logger.enter('toogleList');
         var that = this,
             elements;
         this.maxcount = this.controls.renderMaxCount;
@@ -633,7 +637,7 @@ var Viewer = function () {
             }, 'Expanding JSON tree...');
 
         });
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Toogles expanded/collapsed view in json tree
@@ -641,8 +645,8 @@ var Viewer = function () {
      */
     Viewer.prototype.toogleList = function (toogleBtnElement) {
         var image;
-        viewerLogger.enter('toogleList');
-        viewerLogger.debug('Toogling', toogleBtnElement);
+        this.logger.enter('toogleList');
+        this.logger.debug('Toogling', toogleBtnElement);
         if (toogleBtnElement.hasClass("expanded")) {
             toogleBtnElement.removeClass("expanded");
             toogleBtnElement.addClass("collapsed");
@@ -659,7 +663,7 @@ var Viewer = function () {
             image = this.getRootImage(toogleBtnElement.parent());
             this.render(image, toogleBtnElement.parent().find('.list'));
         }
-        viewerLogger.exit();
+        this.logger.exit();
     };
     /**
      * Gets sub-jsonImage for on-demand rendering of json tree
@@ -667,22 +671,22 @@ var Viewer = function () {
      * @returns {jsonImage}
      */
     Viewer.prototype.getRootImage = function (itemElement) {
-        viewerLogger.enter('getRootImage');
+        this.logger.enter('getRootImage');
         var trace = [],
             image;
         //rootElement = itemElement.find('.list');
         while (itemElement.prop("tagName") === 'LI') {
-            viewerLogger.debug('Looking up root element:', itemElement);
+            this.logger.debug('Looking up root element:', itemElement);
             trace.push(itemElement.attr('data-index'));
             itemElement = itemElement.parent().parent();
         }
         image = this.jsonImage.jsonImage;
         while (trace.length) {
             image = image[trace[trace.length - 1]].value;
-            viewerLogger.debug('Looking up image:', [image]);
+            this.logger.debug('Looking up image:', [image]);
             trace.pop();
         }
-        viewerLogger.exit();
+        this.logger.exit();
         return image;
     };
     /**
@@ -691,7 +695,7 @@ var Viewer = function () {
      * @returns {number}
      */
     Viewer.prototype.getValueCount = function (jsonImage) {
-        viewerLogger.enter('getValueCount');
+        this.logger.enter('getValueCount');
         var valueCount = 0,
             i = 0,
             value,
@@ -719,8 +723,8 @@ var Viewer = function () {
                 this.route.pop();
             }
         }
-        viewerLogger.debug('Found values:', total);
-        viewerLogger.exit();
+        this.logger.debug('Found values:', total);
+        this.logger.exit();
         return total;
     };
     /**
@@ -728,7 +732,7 @@ var Viewer = function () {
      * @param action {string} "render" | "showTypes" | "showIndex"
      */
     Viewer.prototype.cancelAction = function (action) {
-        viewerLogger.enter('cancelAction');
+        this.logger.enter('cancelAction');
         var id;
         switch (action) {
             case 'render':
@@ -744,8 +748,8 @@ var Viewer = function () {
                 break;
         }
         clearTimeout(id);
-        viewerLogger.debug('Cleared Timeout ID', id);
-        viewerLogger.exit();
+        this.logger.debug('Cleared Timeout ID', id);
+        this.logger.exit();
     };
     /**
      * Gets type of variable

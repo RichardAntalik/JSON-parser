@@ -2,10 +2,13 @@
 var Parser = function () {
     "use strict";
     /**
-     * @param params {object}
+     * @param params {object} logger
      * @constructor
      */
-    var Parser = function () {
+    var Parser = function (logger) {
+        if (logger) {
+            this.logger = logger;
+        }
     };
     Parser.prototype.repeatString = function (string, num) {
         return new Array(num + 1).join(string);
@@ -90,7 +93,6 @@ var Parser = function () {
      * and {[value1, value2, ...]} for array representation
      */
     Parser.prototype.parseJson = function (jsonString) {
-        console.clear();
         this.sendLog("Starting parser...");
 
         this.timestamp = new Date().getTime();
@@ -486,40 +488,34 @@ var Parser = function () {
     };
 
     Parser.prototype.sendLog = function () {
-        if (this.enableLogs) {
-            var msg = {};
-            msg.action = "log";
-            var args = Array.prototype.slice.call(arguments);  //OMG this thing is such slow...
-            msg.data = args.join(' ');
-            if (self.document === undefined) {
-                postMessage(JSON.stringify(msg));
-            } else {
-                parserLogger.info(msg.data);
-            }
+        var msg = {},
+            args = Array.prototype.slice.call(arguments);  //OMG this thing is such slow...
+        msg.data = args.join(' ');
+        msg.action = "log";
+        if (self.document === undefined) {
+            postMessage(JSON.stringify(msg));
+        } else {
+            this.logger.info(msg.data);
         }
     };
     Parser.prototype.sendGroup = function (group) {
-        if (this.enableLogs) {
-            var msg = {};
-            msg.action = "group";
-            msg.data = group;
-            if (self.document === undefined) {
-                postMessage(JSON.stringify(msg));
-            } else {
-                parserLogger.enter(msg.data);
-            }
+        var msg = {};
+        msg.action = "group";
+        msg.data = group;
+        if (self.document === undefined) {
+            postMessage(JSON.stringify(msg));
+        } else {
+            this.logger.enter(msg.data);
         }
     };
     Parser.prototype.sendGroupEnd = function (group) {
-        if (this.enableLogs) {
-            var msg = {};
-            msg.action = "groupEnd";
-            msg.data = group;
-            if (self.document === undefined) {
-                postMessage(JSON.stringify(msg));
-            } else {
-                parserLogger.exit(msg.data);
-            }
+        var msg = {};
+        msg.action = "groupEnd";
+        msg.data = group;
+        if (self.document === undefined) {
+            postMessage(JSON.stringify(msg));
+        } else {
+            this.logger.exit(msg.data);
         }
     };
     Parser.prototype.sendProgressMsg = function (action, force) {
@@ -546,7 +542,6 @@ var Parser = function () {
         }
     };
     return Parser;
-}
-();
+}();
 
 

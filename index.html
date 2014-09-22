@@ -135,7 +135,7 @@
 
     </style>
 </head>
-<body class="env-prod">
+<body class="xenv-prod">
 <div style="width: 100%; height: 750px;">
 
     <textarea id="input" style="width:600px; height:700px; display:inline-block; float: left;">
@@ -169,10 +169,7 @@
 
 
 <script>
-var         viewerLogger = new ODT.Logger('Viewer'),
-            parserLogger = new ODT.Logger('Parser'),
-            viewer,
-            parser;
+    var viewer;
     $(document).ready(function () {
         viewer = new Viewer(
                 {

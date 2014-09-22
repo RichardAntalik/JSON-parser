@@ -55,18 +55,18 @@ var Viewer = function () {
      * Initialize worker if available
      */
     Viewer.prototype.startWorker = function () {
-
+    var worker;
         if (Worker !== undefined) {
-            if (w === undefined) {
+            if (worker === undefined) {
                 try {
-                    w = new Worker("worker.js");
+                    worker = new Worker("worker.js");
                 } catch (err) {
                     console.error(err.message);
                     this.bindNoWorkerEvents();
                 }
             }
-            if (w) {
-                this.bindWorkerEvents();
+            if (worker) {
+                this.bindWorkerEvents(worker);
             }
         } else {
             this.bindNoWorkerEvents();
@@ -101,7 +101,7 @@ var Viewer = function () {
     /**
      * Bind functions to events with worker support
      */
-    Viewer.prototype.bindWorkerEvents = function () {
+    Viewer.prototype.bindWorkerEvents = function (worker) {
         var that = this,
             msg = {};
 
@@ -109,24 +109,24 @@ var Viewer = function () {
             var msg = {};
             msg.action = "prettify";
             msg.data = that.controls.inputElement.val();
-            w.postMessage(JSON.stringify(msg));
+            worker.postMessage(JSON.stringify(msg));
         });
 
         $(document).on('click', this.controls.minifyButton.selector, function () {
             var msg = {};
             msg.action = "minify";
             msg.data = that.controls.inputElement.val();
-            w.postMessage(JSON.stringify(msg));
+            worker.postMessage(JSON.stringify(msg));
         });
 
         that.controls.inputElement.bind('input propertychange', function () {
             var msg = {};
             msg.action = "parse";
             msg.data = that.controls.inputElement.val();
-            w.postMessage(JSON.stringify(msg));
+            worker.postMessage(JSON.stringify(msg));
         });
 
-        w.onmessage = function (event) {
+        worker.onmessage = function (event) {
             msg = JSON.parse(event.data);
             switch (msg.action) {
                 case "parse":
@@ -167,7 +167,7 @@ var Viewer = function () {
 
         msg.action = "parse";
         msg.data = $('#input').val();
-        w.postMessage(JSON.stringify(msg));
+        worker.postMessage(JSON.stringify(msg));
     };
     /**
      * Progress handler
@@ -183,8 +183,6 @@ var Viewer = function () {
             percent = Math.round((done / total) * 100);
         }
         viewerLogger.debug("Progressbar:", [done, total]);
-        console.log("Progressbar:", done, total);
-
         this.progressbarAction = action;
         this.progressbar.stop(true, true);
         this.progressbar.css("display", "block");
@@ -199,10 +197,12 @@ var Viewer = function () {
      */
     Viewer.prototype.render = function (jsonImage, rootElement, oneshot, callback) {
         viewerLogger.enter('render');
-
         var that = this,
             index = 1,
             interrupt = false;
+
+        this.controls.expandButton.attr("disabled", true);
+
         if (oneshot === undefined) {
             this.cancelAction('render');
             this.route = [];
@@ -242,6 +242,7 @@ var Viewer = function () {
                 that.render(jsonImage, "", oneshot, callback);
             }, 5);
         } else {
+            this.controls.expandButton.attr("disabled", false);
             callback();
         }
         viewerLogger.exit();
@@ -535,15 +536,14 @@ var Viewer = function () {
         viewerLogger.exit();
     };
     /**
-     * Toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
      * @param state {boolean} toogle on/off
+     * Toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
      */
     Viewer.prototype.showArrayIndex = function (state) {
+        viewerLogger.enter('showArrayIndex');
         var that = this,
             view = this.getElementInView(),
             container = this.controls.renderOutputElement;
-
-        viewerLogger.enter('showArrayIndex');
         this.showIndex = state;
         this.cancelAction('showIndex');
         this.eachElement(container.find('ol'), this.timers.showIndex, function (index, element) {
@@ -560,13 +560,14 @@ var Viewer = function () {
     /**
      * Iterate over elements with timeouts
      * @param elements {jQuery}
-     * @param timerID
+     * @param timer
      * @param callback {function(index, element)}
      * @param action {string} text for progressbar
      * @param index {number=} sets by iterating - do not set!
      * @param oneshot {boolean=} sets by iterating - do not set!
      */
-    Viewer.prototype.eachElement = function (elements, timerID, callback, action, index, oneshot) {
+    Viewer.prototype.eachElement = function (elements, timer, callback, action, index, oneshot) {
+        viewerLogger.enter('toogleList');
         var that = this;
 
         if (!index) {
@@ -582,28 +583,32 @@ var Viewer = function () {
             this.progress(action, index, elements.length);
             oneshot = false;
             this.timeoutId[action] = setTimeout(function () {
-                that.eachElement(elements, timerID, callback, action, index, oneshot);
+                that.eachElement(elements, timer, callback, action, index, oneshot);
             }, 1);
         } else {
             if (!oneshot) {
                 this.progress();
             }
         }
+        viewerLogger.exit();
     };
     /**
      * Collapses JSON tree
      */
     Viewer.prototype.collapseAll = function () {
+        viewerLogger.enter('toogleList');
         var that = this,
             elements = this.controls.renderOutputElement.find('.expanded');
         this.eachElement(elements, this.timers.unused, function (index, element) {
             that.toogleList($(element));
         }, 'Collapsing JSON tree...');
+        viewerLogger.exit();
     };
     /**
      * Expands JSON tree
      */
     Viewer.prototype.expandAll = function () {
+        viewerLogger.enter('toogleList');
         var that = this,
             elements;
         this.maxcount = this.controls.renderMaxCount;
@@ -628,7 +633,7 @@ var Viewer = function () {
             }, 'Expanding JSON tree...');
 
         });
-
+        viewerLogger.exit();
     };
     /**
      * Toogles expanded/collapsed view in json tree

@@ -7,6 +7,7 @@ var Parser = (function () {
     var Parser = function (logger) {
         if (logger) {
             this.logger = logger;
+            this.enableLogs = logger.isEnabledLogging();
         }
     };
     Parser.prototype.repeatString = function (string, num) {
@@ -487,34 +488,40 @@ var Parser = (function () {
     };
 
     Parser.prototype.sendLog = function () {
-        var msg = {},
-            args = Array.prototype.slice.call(arguments);  //OMG this thing is such slow...
-        msg.data = args.join(' ');
-        msg.action = "log";
-        if (self.document === undefined) {
-            postMessage(JSON.stringify(msg));
-        } else {
-            this.logger.info(msg.data);
+        if (this.enableLogs) {
+            var msg = {};
+            msg.action = "log";
+            var args = Array.prototype.slice.call(arguments);  //OMG this thing is such slow...
+            msg.data = args.join(' ');
+            if (self.document === undefined) {
+                postMessage(JSON.stringify(msg));
+            } else {
+                parserLogger.info(msg.data);
+            }
         }
     };
     Parser.prototype.sendGroup = function (group) {
-        var msg = {};
-        msg.action = "group";
-        msg.data = group;
-        if (self.document === undefined) {
-            postMessage(JSON.stringify(msg));
-        } else {
-            this.logger.enter(msg.data);
+        if (this.enableLogs) {
+            var msg = {};
+            msg.action = "group";
+            msg.data = group;
+            if (self.document === undefined) {
+                postMessage(JSON.stringify(msg));
+            } else {
+                parserLogger.enter(msg.data);
+            }
         }
     };
     Parser.prototype.sendGroupEnd = function (group) {
-        var msg = {};
-        msg.action = "groupEnd";
-        msg.data = group;
-        if (self.document === undefined) {
-            postMessage(JSON.stringify(msg));
-        } else {
-            this.logger.exit(msg.data);
+        if (this.enableLogs) {
+            var msg = {};
+            msg.action = "groupEnd";
+            msg.data = group;
+            if (self.document === undefined) {
+                postMessage(JSON.stringify(msg));
+            } else {
+                parserLogger.exit(msg.data);
+            }
         }
     };
     Parser.prototype.sendProgressMsg = function (action, force) {

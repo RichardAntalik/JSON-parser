@@ -25,6 +25,9 @@ ODT.Logger = (function () {
     };
     DummyLogger.prototype.error = function (msg, context) {
     };
+    DummyLogger.prototype.isEnabledLogging = function () {
+        return false;
+    };
 
     /**
      * @constructor
@@ -166,6 +169,9 @@ ODT.Logger = (function () {
         return formattedTime;
     };
 
+    Logger.prototype.isEnabledLogging = function () {
+        return true;
+    };
 
     // disable logging if console is not available
     var isEnabledLogging = (console !== undefined && console.log !== undefined && console.group !== undefined && console.groupCollapsed !== undefined && console.groupEnd !== undefined);

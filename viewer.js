@@ -55,8 +55,8 @@ var Viewer = (function () {
      */
     Viewer.prototype.startWorker = function () {
 
-    var worker,
-        parserLogger = new ODT.Logger('Parser');
+        var worker,
+            parserLogger = new ODT.Logger('Parser');
 
         if (Worker !== undefined) {
             if (worker === undefined) {
@@ -164,6 +164,10 @@ var Viewer = (function () {
                     break;
             }
         };
+
+        msg.action = 'log';
+        msg.data = this.logger.isEnabledLogging();
+        worker.postMessage(JSON.stringify(msg));
 
         msg.action = "parse";
         msg.data = $('#input').val();

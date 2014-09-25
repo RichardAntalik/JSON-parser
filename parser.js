@@ -236,9 +236,6 @@ var Parser = (function () {
             case '{':
                 value = this.parseJsonObject();
                 break;
-            case '+':
-                this.errorExpected('STRING or NUMBER or true or false or null');
-                break;
             default :
                 value = this.getJsonValue();
                 switch (value.trim()) {
@@ -261,14 +258,25 @@ var Parser = (function () {
                 }
         }
         this.sendGroupEnd();
-        return value;
+        return this.escapeText(value);
     };
+    /**
+     * Escape dangerous characters.
+     * @param text {*}
+     * @returns {*}
+     */
+    Parser.prototype.escapeText = function (text) {
+        if (typeof text === 'string') {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+        return text;
+    };
+
     /**
      * Parse string.
      * @param string string to parse
      * @param stringAtPointer position of string (end)
      */
-
     Parser.prototype.parseJsonString = function (string, stringAtPointer) {
         this.sendGroup("parseJsonString");
         this.sendLog("Parsing JSON string @ ", stringAtPointer);

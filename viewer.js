@@ -1,9 +1,22 @@
 /*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, ODT:false*/
 var Viewer = (function () {
     "use strict";
-
     /**
+     * members of controls:
+     * errorOutput - jquery or callback
+     * inputElement
+     * prettifyButton
+     * minifyButton
+     * expandButton
+     * collapseButton
+     * renderOutputElement
+     * showTypesCheckbox
+     * showArrayIndexCheckbox
+     * progressbarElement
+     * progressbarLabelElement
+     * renderMaxCount
      * @param controls {object}
+     *
      * @constructor
      */
     var Viewer = function (controls) {
@@ -210,6 +223,8 @@ var Viewer = (function () {
             this.route = [];
 
             if (this.typeOf(jsonImage) === 'object') {
+                this.valueElements = [];
+                this.listElements = [];
                 this.controls.renderOutputElement.html('');
                 if (this.controls.errorOutput[0]) {
                     this.controls.errorOutput.html('');
@@ -264,6 +279,7 @@ var Viewer = (function () {
             interrupt = this.isTimeToInterrupt();
             this.valueCount++;
             if (route.type === "object") {
+
                 name = route.actual[route.index].name;
             }
             value = route.actual[route.index].value;
@@ -296,26 +312,22 @@ var Viewer = (function () {
      */
     Viewer.prototype.createItemElement = function (name, value, index) {
         this.logger.enter('createItemElement');
-        var nameElement,
-            valueElement,
-            itemElement = $('<li data-index="' + index + '" />');
+        var itemElement = [],
+            show = this.showTypes ? " show" : " ";
+
+        itemElement.push('<li data-index="' + index + '">');
         if (name) {
-            nameElement = $('<span class="property"/>');
-            nameElement.text(name);
-            nameElement.append(': ');
-            itemElement.append(nameElement);
+            itemElement.push('<span class="property">' + name + ': </span>');
         }
-        if (typeof value !== 'object') {
-            valueElement = $('<span class="value"/>');
-            valueElement.text(value);
-            if (this.typeOf(value) === 'null') {
-                valueElement.text(this.typeOf(value));
-            }
-            valueElement.addClass(this.typeOf(value));
-            if (this.showTypes) {
-                valueElement.addClass('show');
-            }
-            itemElement.append(valueElement);
+        if (this.typeOf(value) !== 'array') {
+            itemElement.push('<span class="value ' + this.typeOf(value) + show + '">');
+            itemElement.push(this.typeOf(value) === 'null' ? 'null' : value);
+            itemElement.push('</span>');
+        }
+        itemElement.push('</li>');
+        itemElement = $(itemElement.join(''));
+        if (this.typeOf(value) !== 'array') {
+            this.valueElements.push(itemElement.find('span'));
         }
         this.logger.debug('Created', itemElement);
         this.logger.exit();
@@ -349,38 +361,33 @@ var Viewer = (function () {
      */
     Viewer.prototype.createListElement = function (route) {
         this.logger.enter('createListElement');
-        var elementStrings,
-            listElement,
-            valueElement;
+        var listElement = [],
+            endElement = [],
+            valueElement = [],
+            show = this.showTypes ? " show" : " ",
+            countElement = [];
+
         if (route.type === "object") {
-            elementStrings = {
-                open: '{',
-                close: '}',
-                element: '<ul class="list" />',
-                count: route.actual.length - 1
-            };
+            valueElement = $('<span class="value start toogle expanded object' + show + '">{</span>');
+            countElement = $('<span class="count">' + (route.actual.length - 1) + '</span>');
+            listElement = $('<ul class="list"></ul>');
+            endElement = $('<span class="object end">}</span>');
         } else {
-            elementStrings = {
-                open: '[',
-                close: ']',
-                element: '<ol start="0" class="list" />',
-                count: route.actual.length - 1
-            };
+            valueElement = $('<span class="value start toogle expanded array' + show + '">[</span>');
+            countElement = $('<span class="count">' + (route.actual.length - 1) + '</span>');
+            if (this.showIndex && route.type === "array") {
+                listElement = $('<ol class="list" style="list-style: decimal"></ol>');
+            } else {
+                listElement = $('<ol class="list"></ol>');
+            }
+            endElement = $('<span class="array end">]</span>');
+            this.listElements.push(listElement[0]);
         }
-        listElement = $(elementStrings.element);
-        valueElement = $('<span class="value start toogle expanded">');
-        valueElement.addClass(route.type);
-        valueElement.text(elementStrings.open);
+        this.valueElements.push(valueElement[0]);
         route.tag.append(valueElement);
-        route.tag.append('<span class="count">' + elementStrings.count + '</span>');
+        route.tag.append(countElement);
         route.tag.append(listElement);
-        route.tag.append('<span class=" ' + route.type + ' end">' + elementStrings.close + '</span>');
-        if (this.showIndex && route.type === "array") {
-            listElement.css('list-style', 'decimal');
-        }
-        if (this.showTypes) {
-            valueElement.addClass('show');
-        }
+        route.tag.append(endElement);
         if (this.valueCount > this.controls.renderMaxCount) {
             this.toogleList(valueElement);
             valueElement.addClass('empty');
@@ -425,7 +432,7 @@ var Viewer = (function () {
         return route;
     };
     /**
-     * When function that needs to be interrupted after some time starts, it must set Viewer.timestamp to value provided
+     * When function that needs to be interrupted after some time, it must set Viewer.timestamp to value provided
      * by Date().getTime() function. If value in timestamp variable differs by defined value returns true. otherwise
      * returns false.
      * @param force {boolean} use to force interrupt
@@ -433,7 +440,7 @@ var Viewer = (function () {
      */
     Viewer.prototype.isTimeToInterrupt = function (force) {
         var timenow = new Date().getTime(),
-            time = 50;
+            time = 100;
 
         if (timenow > this.timestamp + time || force) {
             this.logger.debug('isTimeToInterrupt: Interrupting!');
@@ -477,16 +484,16 @@ var Viewer = (function () {
     Viewer.prototype.getElementInView = function () {
         this.logger.enter('getElementInView');
         var container = this.controls.renderOutputElement,
-            elements = container.find(".value"),
+            elements = this.valueElements,
             offset = -666,
             index = 0;
         while (offset < -1 && index < elements.length) {
             offset = $(elements[index]).offset().top - container.offset().top;
             index++;
         }
-        this.logger.debug('referencing view to:', [elements[index-1], offset]);
+        this.logger.debug('referencing view to:', [elements[index - 1], offset]);
         this.logger.exit();
-        return {element: $(elements[index-1]), offset: offset};
+        return {element: $(elements[index - 1]), offset: offset};
     };
     /**
      * Scrolls to element view.element and offsets by view.offset
@@ -497,11 +504,11 @@ var Viewer = (function () {
         this.logger.enter('recoverView');
         var offset = view.element.offset().top - container.offset().top;
         container.scrollTop(container.scrollTop() + offset - view.offset);
-        this.logger.debug('restoring view to:', [view.element[0], offset] );
+        this.logger.debug('restoring view to:', [view.element[0], offset]);
         this.logger.exit();
     };
     /**
-     * Toogles "show" style of elements with "value" style in Viewer.controls.renderOutputElement
+     * Toogles "show" style of elements cached in Viewer.valueElements by render function
      * @param state {boolean} toogle on/off
      */
     Viewer.prototype.showValueTypes = function (state) {
@@ -512,29 +519,28 @@ var Viewer = (function () {
         this.showTypes = state;
         this.cancelAction(this.timers.showTypes);
 
-        this.eachElement(container.find('.value'), this.timers.showTypes, function (element, interrupt, index, total) {
+        this.eachElement(this.valueElements, this.timers.showTypes, function (element, interrupt, index, total) {
             if (that.showTypes) {
                 $(element).addClass("show");
             } else {
                 $(element).removeClass("show");
             }
-            if (index === total-1 || interrupt) {
+            if (index === total - 1 || interrupt) {
                 that.recoverView(container, view);
             }
         }, 'Showing value types...');
         this.logger.exit();
     };
     /**
+     * Toogles list-style css of elements cached in Viewer.listElements by render function
      * @param state {boolean} toogle on/off
-     * Toogles list-style css of <ol> elements in Viewer.controls.renderOutputElement
      */
     Viewer.prototype.showArrayIndex = function (state) {
         this.logger.enter('showArrayIndex');
-        var that = this,
-            container = this.controls.renderOutputElement;
+        var that = this;
         this.showIndex = state;
         this.cancelAction(this.timers.index);
-        this.eachElement(container.find('ol'), this.timers.showIndex, function (element) {
+        this.eachElement(this.listElements, this.timers.showIndex, function (element) {
             if (that.showIndex) {
                 $(element).css('list-style', 'decimal');
                 $(element).attr("start", "0");

@@ -92,17 +92,15 @@ ODT.Logger = (function () {
      * @param {string} msg
      * @param {Array=} context
      */
-    Logger.prototype.log = function (level, msg, context) {
-        msg = this.getFormattedTime() + " " + this.name + "::" + msg;
-        if (context === undefined) {
-            context = [msg];
-        } else {
-            if (Array.isArray(context)) {
-                context.unshift(msg);
-            } else {
-                context = [msg, context];
-            }
+    Logger.prototype.log = function (level, args) {
+        var i,
+            msg = args[0],
+            context = [];
+        for (i = 1; i < args.length; i++) {
+            context.push(args[i]);
         }
+        msg = this.getFormattedTime() + " " + this.name + "::" + ( msg || ' ');
+        context.unshift(msg);
         console[level].apply(console, context);
     };
 
@@ -113,17 +111,16 @@ ODT.Logger = (function () {
      * @param {string} msg
      * @param {Array=} context
      */
-    Logger.prototype.debug = function (msg, context) {
-        this.log(Logger.Level.DEBUG, msg, context);
+    Logger.prototype.debug = function () {
+        this.log(Logger.Level.DEBUG, arguments);
     };
 
     /**
      * Log a INFO level message.
      * @param {string} msg
-     * @param {Array=} context
      */
-    Logger.prototype.info = function (msg, context) {
-        this.log(Logger.Level.INFO, msg, context);
+    Logger.prototype.info = function () {
+        this.log(Logger.Level.INFO, arguments);
     };
 
     /**
@@ -131,8 +128,8 @@ ODT.Logger = (function () {
      * @param {string} msg
      * @param {Array=} context
      */
-    Logger.prototype.warn = function (msg, context) {
-        this.log(Logger.Level.WARN, msg, context);
+    Logger.prototype.warn = function () {
+        this.log(Logger.Level.WARN, arguments);
     };
 
     /**
@@ -140,8 +137,8 @@ ODT.Logger = (function () {
      * @param {string} msg
      * @param {Array=} context
      */
-    Logger.prototype.error = function (msg, context) {
-        this.log(Logger.Level.ERROR, msg, context);
+    Logger.prototype.error = function () {
+        this.log(Logger.Level.ERROR, arguments);
     };
 
     // </editor-fold>

@@ -504,7 +504,7 @@ var Parser = (function () {
             if (self.document === undefined) {
                 postMessage(JSON.stringify(msg));
             } else {
-                parserLogger.info(msg.data);
+                this.logger.info(msg.data);
             }
         }
     };
@@ -516,7 +516,7 @@ var Parser = (function () {
             if (self.document === undefined) {
                 postMessage(JSON.stringify(msg));
             } else {
-                parserLogger.enter(msg.data);
+                this.logger.enter(msg.data);
             }
         }
     };
@@ -528,7 +528,7 @@ var Parser = (function () {
             if (self.document === undefined) {
                 postMessage(JSON.stringify(msg));
             } else {
-                parserLogger.exit(msg.data);
+                this.logger.exit(msg.data);
             }
         }
     };

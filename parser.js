@@ -1,7 +1,7 @@
 var Parser = (function () {
     "use strict";
     /**
-     * @param params {object} logger
+     * @param {object} logger ODT.Logger
      * @constructor
      */
     var Parser = function (logger) {
@@ -10,10 +10,17 @@ var Parser = (function () {
             this.enableLogs = logger.isEnabledLogging();
         }
     };
+    /**
+     *Repeats string num times
+     * @param {string} string
+     * @param {number} num
+     * @returns {string}
+     */
     Parser.prototype.repeatString = function (string, num) {
         return new Array(num + 1).join(string);
     };
     /**
+     * Gets next non-whitespace character.
      * @returns {string} Return next token of this.jsonString relative to this.pointer
      */
     Parser.prototype.getNextToken = function () {
@@ -25,6 +32,7 @@ var Parser = (function () {
         return this.token;
     };
     /**
+     * Gets previous non-whitespace character.
      * @returns {string} Return previous token of this.jsonString relative to this.pointer
      */
     Parser.prototype.getPrevToken = function () {
@@ -38,8 +46,7 @@ var Parser = (function () {
     };
     /**
      * Extract value from this.jsonString.
-     * Read from this.pointer to common ending tokens, newline.
-     * Strings are extracted properly.
+     * Read from this.pointer to common ending tokens or newline.
      * @returns {string} extracted value
      */
     Parser.prototype.getJsonValue = function () {
@@ -85,12 +92,32 @@ var Parser = (function () {
         this.sendGroupEnd();
         return value;
     };
+
+    /**
+     * @name errorObject
+     * @type {Object}
+     * @property {number} atLine
+     * @property {number} atCol
+     * @property {number} atPointer
+     * @property {string} text
+     * @property {array.string} sampleString
+     */
+
+    /**
+     * jsonImage:
+     * jsonImage represents structure of JSON.
+     * object and array notation is represented by array. First item is a string determining type. Following by objects
+     * with property 'name' in case of object representation and 'value' for both types. Name property contains name of
+     * json pair. Value property contains its value. In case a JSON value is array or object, value property will
+     * contain jsonImage.
+     * ['object' | 'array', {name: 'name', value: 'value'}, ...]
+     * @typedef {Array.(Object.<string, *>|*)} jsonImage
+     */
+
     /**
      * Starts parsing this.jsonString
-     * @returns {object} {jsonImage: [jsonImage object], error:[error object], isValid: [boolean], valueCount: [integer]}
-     *
-     * jsonImage is object in form {members: {[name:name, value:value],...]} for object
-     * and {[value1, value2, ...]} for array representation
+     * @param (string) jsonString
+     * @returns {object} {jsonImage: {@link jsonImage}, isValid: boolean, error: {@link errorObject}}
      */
     Parser.prototype.parseJson = function (jsonString) {
         this.sendLog("Starting parser...");
@@ -102,7 +129,6 @@ var Parser = (function () {
         this.isValid = true;
         this.jsonImage = {};
         this.error = {};
-        this.valueCount = 0;
         var jsonImage = {};
         this.oneshot = true;
 
@@ -120,12 +146,11 @@ var Parser = (function () {
 
         jsonImage.error = this.error;
         jsonImage.isValid = this.isValid;
-        jsonImage.valueCount = this.valueCount;
         return jsonImage;
     };
     /**
      * Parse json object.
-     * @returns {object} jsonImage object
+     * @returns {jsonImage}
      */
     Parser.prototype.parseJsonObject = function () {
         this.sendGroup("parseJsonObject");
@@ -184,7 +209,7 @@ var Parser = (function () {
     };
     /**
      * Parse json array
-     * @returns {Array}
+     * @returns {jsonImage}
      */
     Parser.prototype.parseJsonArray = function () {
         this.sendGroup("parseJsonArray");
@@ -222,7 +247,6 @@ var Parser = (function () {
         this.sendLog("Parsing JSON value @ " + this.pointer);
         var value,
             pattern = /^\s*(-?[0-9]*([.]?[0-9]+))(((e|E)(-|\+)?)[0-9]+)?\s*$/;
-        this.valueCount++;
         this.sendProgressMsg("Parsing...");
         this.getNextToken();
         switch (this.token) {
@@ -262,7 +286,7 @@ var Parser = (function () {
     };
     /**
      * Escape dangerous characters.
-     * @param text {*}
+     * @param {*} text
      * @returns {*}
      */
     Parser.prototype.escapeText = function (text) {
@@ -275,7 +299,7 @@ var Parser = (function () {
     /**
      * Parse string.
      * @param string string to parse
-     * @param stringAtPointer position of string (end)
+     * @param string AtPointer end position of string
      */
     Parser.prototype.parseJsonString = function (string, stringAtPointer) {
         this.sendGroup("parseJsonString");
@@ -345,7 +369,7 @@ var Parser = (function () {
         this.sendGroupEnd();
     };
     /**
-     * Print error message to console.
+     * Create error message.
      * @param expected
      * @param got
      */
@@ -384,7 +408,7 @@ var Parser = (function () {
     };
     /**
      * Create an array containing 2lines or 50 charaters before and after error, and bad character inbetween
-     * @param errorAtPosition
+     * @param {number} errorAtPosition
      */
     Parser.prototype.getErrorSubstring = function (errorAtPosition) {
         var pointer = errorAtPosition,
@@ -423,7 +447,12 @@ var Parser = (function () {
         }
         return sampleString;
     };
-
+    /**
+     * Prettify JSON.
+     * @param {string} jsonString
+     * @param {string} indentString
+     * @returns {string} prettified string of jsonString
+     */
     Parser.prototype.prettify = function (jsonString, indentString) {
         var character = "",
             prettified = "",
@@ -474,6 +503,8 @@ var Parser = (function () {
         return prettified;
     };
     /**
+     * Minify JSON.
+     * @param {string} jsonString
      * @returns {string} minified string of this.jsonString
      */
     Parser.prototype.minify = function (jsonString) {
@@ -494,8 +525,11 @@ var Parser = (function () {
         }
         return minified;
     };
-
-    Parser.prototype.sendLog = function () {
+    /**
+     * Logging function
+     * @param {...*} context context
+     */
+    Parser.prototype.sendLog = function (context) {
         if (this.enableLogs) {
             var msg = {};
             msg.action = "log";
@@ -508,6 +542,10 @@ var Parser = (function () {
             }
         }
     };
+    /**
+     * Create new log group
+     * @param {string} group
+     */
     Parser.prototype.sendGroup = function (group) {
         if (this.enableLogs) {
             var msg = {};
@@ -520,6 +558,10 @@ var Parser = (function () {
             }
         }
     };
+    /**
+     * Close new log group
+     * @param {string} group
+     */
     Parser.prototype.sendGroupEnd = function (group) {
         if (this.enableLogs) {
             var msg = {};
@@ -532,6 +574,11 @@ var Parser = (function () {
             }
         }
     };
+    /**
+     * Send info about action progress
+     * @param {string} action action name
+     * @param {boolean} force force update
+     */
     Parser.prototype.sendProgressMsg = function (action, force) {
         var time;
         if (self.document === undefined) {

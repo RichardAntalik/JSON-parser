@@ -1,22 +1,27 @@
 /*global $:false, w:false, Parser:false, parser:false, viewer:false, Worker:false, ODT:false*/
 var Viewer = (function () {
     "use strict";
+    // <editor-fold desc="Initialization">
     /**
-     * members of controls:
-     * errorOutput - jquery or callback
-     * inputElement
-     * prettifyButton
-     * minifyButton
-     * expandButton
-     * collapseButton
-     * renderOutputElement
-     * showTypesCheckbox
-     * showArrayIndexCheckbox
-     * progressbarElement
-     * progressbarLabelElement
-     * renderMaxCount
+     * Called once for each element.
+     * @callback renderErrorCallback
+     * @param {@link errorObject} error
+     */
+
+    /**
      * @param controls {object}
-     *
+     * @param {jQuery|renderErrorCallback} controls.errorOutput
+     * @param {jQuery} controls.inputElement
+     * @param {jQuery} controls.prettifyButton
+     * @param {jQuery} controls.minifyButton
+     * @param {jQuery} controls.expandButton
+     * @param {jQuery} controls.collapseButton
+     * @param {jQuery} controls.renderOutputElement
+     * @param {jQuery} controls.showTypesCheckbox
+     * @param {jQuery} controls.showArrayIndexCheckbox
+     * @param {jQuery} controls.progressbarElement
+     * @param {jQuery} controls.progressbarLabelElement
+     * @param {jQuery} controls.renderMaxCount
      * @constructor
      */
     var Viewer = function (controls) {
@@ -49,16 +54,18 @@ var Viewer = (function () {
             e.preventDefault();
             that.toogleList($(this));
         });
-        this.progressbar = controls.progressbarElement;
-        this.progressLabel = controls.progressbarLabelElement;
-        this.progressbar.progressbar({
+        controls.progressbarElement.progressbar({
             value: false,
             change: function () {
-                that.progressLabel.text(that.progressbarAction + ' ' + that.progressbar.progressbar("value") + "%");
+                var progressbar = that.controls.progressbarElement,
+                    label = that.controls.progressbarLabelElement;
+                label.text(that.progressbarAction + ' ' + progressbar.progressbar("value") + "%");
             },
             complete: function () {
-                that.progressLabel.text("Complete!");
-                that.progressbar.fadeOut(900);
+                var progressbar = that.controls.progressbarElement,
+                    label = that.controls.progressbarLabelElement;
+                label.text("Complete!");
+                progressbar.fadeOut(900);
             }
         });
         this.startWorker();
@@ -89,6 +96,7 @@ var Viewer = (function () {
     };
     /**
      * Bind functions to events with no worker support
+     * @param {object} logger ODT.Logger
      */
     Viewer.prototype.bindNoWorkerEvents = function (logger) {
         var that = this,
@@ -116,6 +124,8 @@ var Viewer = (function () {
     };
     /**
      * Bind functions to events with worker support
+     * @param {Worker} worker
+     * @param {object} logger ODT.Logger
      */
     Viewer.prototype.bindWorkerEvents = function (worker, logger) {
         var that = this,
@@ -177,7 +187,6 @@ var Viewer = (function () {
                     break;
             }
         };
-
         msg.action = 'log';
         msg.data = this.logger.isEnabledLogging();
         worker.postMessage(JSON.stringify(msg));
@@ -186,31 +195,15 @@ var Viewer = (function () {
         msg.data = $('#input').val();
         worker.postMessage(JSON.stringify(msg));
     };
-    /**
-     * Progress handler
-     * @param action {string}
-     * @param done {number}
-     * @param total {number}
-     */
-    Viewer.prototype.progress = function (action, done, total) {
-        var percent;
-        if (!action) {
-            percent = 100;
-        } else {
-            percent = Math.round((done / total) * 100);
-        }
-        this.logger.debug("Progressbar:", [done, total]);
-        this.progressbarAction = action;
-        this.progressbar.stop(true, true);
-        this.progressbar.css("display", "block");
-        this.progressbar.progressbar("value", percent);
-    };
+    //</editor-fold>
+
+    //<editor-fold desc="Render methods">
     /**
      * Render jsonImage
-     * @param jsonImage {object} jsonImage
+     * @param jsonImage {jsonImage} jsonImage
      * @param rootElement {jQuery} render to this element
-     * @param oneshot {boolean} do not set unless route is initialized
-     * @param callback {function} done callback
+     * @param oneshot {boolean=} do not set unless route is initialized
+     * @param callback {function=} done callback
      */
     Viewer.prototype.render = function (jsonImage, rootElement, oneshot, callback) {
         this.logger.enter('render');
@@ -225,6 +218,7 @@ var Viewer = (function () {
             if (this.typeOf(jsonImage) === 'object') {
                 this.valueElements = [];
                 this.listElements = [];
+                this.emptyElements = [];
                 this.controls.renderOutputElement.html('');
                 if (this.controls.errorOutput[0]) {
                     this.controls.errorOutput.html('');
@@ -265,7 +259,7 @@ var Viewer = (function () {
     };
     /**
      * Renders values of jsonImage
-     * @returns {*}
+     * @returns {boolean} interrupt signal
      */
     Viewer.prototype.renderValues = function () {
         this.logger.enter('renderValues');
@@ -304,11 +298,11 @@ var Viewer = (function () {
         return interrupt;
     };
     /**
-     * Creates <li> element
+     * Creates elements representing item
      * @param name {string}
      * @param value {*}
-     * @param index {number} position in jsonImage. HTML attribute data-index will contain this value
-     * @returns {jQuery}
+     * @param index {number} position in jsonImage tree. HTML attribute data-index will contain this value
+     * @returns {jQuery} item element
      */
     Viewer.prototype.createItemElement = function (name, value, index) {
         this.logger.enter('createItemElement');
@@ -334,7 +328,7 @@ var Viewer = (function () {
         return itemElement;
     };
     /**
-     * Renders <ul> or <ol> element
+     * Renders elements representing list
      */
     Viewer.prototype.renderList = function () {
         this.logger.enter('renderList');
@@ -355,9 +349,9 @@ var Viewer = (function () {
         this.logger.exit();
     };
     /**
-     * Create <ul> or <ol> element
+     * Creates elements representing list
      * @param route {object}
-     * @returns {jQuery}
+     * @returns {jQuery} list element
      */
     Viewer.prototype.createListElement = function (route) {
         this.logger.enter('createListElement');
@@ -391,67 +385,15 @@ var Viewer = (function () {
         if (this.valueCount > this.controls.renderMaxCount) {
             this.toogleList(valueElement);
             valueElement.addClass('empty');
+            this.emptyElements.push(valueElement[0]);
         }
         this.logger.debug('Created', listElement);
         this.logger.exit();
         return listElement;
     };
     /**
-     * Gets last index of Viewer.route[] routing stack
-     * @returns
-     * actual: reference to jsonImage (sub)object, index: number , tag: (jQuery)
-     * before: reference to previous jsonImage (sub)object, indexbefore: number
-     */
-    Viewer.prototype.getRoute = function () {
-        this.logger.enter('getRoute');
-        var actual,
-            index,
-            before,
-            indexbefore,
-            route;
-        if (this.route.length >= 2) {
-            before = this.route[this.route.length - 2].actual;
-            indexbefore = this.route[this.route.length - 2].index;
-        } else {
-            //If we are rendering 1st level of jsonImage there is no before so here are some random numbers
-            indexbefore = 666;
-            before = [];
-        }
-        actual = this.route[this.route.length - 1].actual;
-        index = this.route[this.route.length - 1].index;
-        route = {
-            type: actual[0],
-            actual: actual,
-            index: index,
-            tag: this.route[this.route.length - 1].tag,
-            before: before,
-            indexbefore: indexbefore
-        };
-        this.logger.debug('Route:', route);
-        this.logger.exit();
-        return route;
-    };
-    /**
-     * When function that needs to be interrupted after some time, it must set Viewer.timestamp to value provided
-     * by Date().getTime() function. If value in timestamp variable differs by defined value returns true. otherwise
-     * returns false.
-     * @param force {boolean} use to force interrupt
-     * @returns {boolean}
-     */
-    Viewer.prototype.isTimeToInterrupt = function (force) {
-        var timenow = new Date().getTime(),
-            time = 100;
-
-        if (timenow > this.timestamp + time || force) {
-            this.logger.debug('isTimeToInterrupt: Interrupting!');
-            this.timestamp = timenow;
-            return true;
-        }
-        return false;
-    };
-    /**
      * Renders error messages to HTML element or calls a function defined in Viewer.controls.errorOutput
-     * @param jsonImage {object}
+     * @param {jsonImage} jsonImage
      */
     Viewer.prototype.renderError = function (jsonImage) {
         this.logger.enter('renderError');
@@ -477,36 +419,9 @@ var Viewer = (function () {
         }
         this.logger.exit();
     };
-    /**
-     * Gets most top visible element and its offset from top of container defined in Viewer.controls.renderOutputElement
-     * @returns {{element: (jQuery), offset: number}}
-     */
-    Viewer.prototype.getElementInView = function () {
-        this.logger.enter('getElementInView');
-        var container = this.controls.renderOutputElement,
-            elements = this.valueElements,
-            offset = -666,
-            index = 0;
-        while (offset < -1 && index < elements.length) {
-            offset = $(elements[index]).offset().top - container.offset().top;
-            index++;
-        }
-        this.logger.debug('referencing view to:', [elements[index - 1], offset]);
-        this.logger.exit();
-        return {element: $(elements[index - 1]), offset: offset};
-    };
-    /**
-     * Scrolls to element view.element and offsets by view.offset
-     * @param container {jQuery}
-     * @param view {object}
-     */
-    Viewer.prototype.recoverView = function (container, view) {
-        this.logger.enter('recoverView');
-        var offset = view.element.offset().top - container.offset().top;
-        container.scrollTop(container.scrollTop() + offset - view.offset);
-        this.logger.debug('restoring view to:', [view.element[0], offset]);
-        this.logger.exit();
-    };
+    //</editor-fold>
+
+    //<editor-fold desc="Tools">
     /**
      * Toogles "show" style of elements cached in Viewer.valueElements by render function
      * @param state {boolean} toogle on/off
@@ -518,7 +433,6 @@ var Viewer = (function () {
             container = this.controls.renderOutputElement;
         this.showTypes = state;
         this.cancelAction(this.timers.showTypes);
-
         this.eachElement(this.valueElements, this.timers.showTypes, function (element, interrupt, index, total) {
             if (that.showTypes) {
                 $(element).addClass("show");
@@ -551,10 +465,121 @@ var Viewer = (function () {
         this.logger.exit();
     };
     /**
+     * Collapses JSON tree
+     */
+    Viewer.prototype.collapseAll = function () {
+        this.logger.enter('collapseAll');
+        var that = this,
+            elements = this.controls.renderOutputElement.find('.expanded');
+        this.eachElement(elements, this.timers.unused, function (element) {
+            that.toogleList($(element));
+        }, 'Collapsing JSON tree...');
+        this.logger.exit();
+    };
+    /**
+     * Expands JSON tree
+     */
+    Viewer.prototype.expandAll = function () {
+        this.logger.enter('expandAll');
+        var that = this,
+            elements;
+        this.maxcount = this.controls.renderMaxCount;
+        this.controls.renderMaxCount = Infinity;
+        this.valueCount = 0;
+        this.imageValueCount = 0;
+        this.multiroute = [];
+        elements = $(this.emptyElements);
+        elements.each(function (index, element) {
+            var image = that.getRootImage($(element).parent());
+            that.multiroute.push({actual: image, index: 1, tag: $(element).parent().find('.list')});
+            $(element).removeClass('empty');
+            that.toogleList($(element));
+            that.imageValueCount += that.getValueCount(image);
+        });
+        this.emptyElements = [];
+        this.route = this.multiroute;
+        this.render('', '', true, function () {
+            that.controls.renderMaxCount = that.maxcount;
+            elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
+            that.eachElement(elements, that.timers.unused, function (element) {
+                that.toogleList($(element));
+            }, 'Expanding JSON tree...');
+        });
+        console.log(this.route);
+        this.logger.exit();
+    };
+    /**
+     * Toogles expanded/collapsed view in json tree
+     * @param toogleBtnElement {jQuery}
+     */
+    Viewer.prototype.toogleList = function (toogleBtnElement) {
+        var image;
+        this.logger.enter('toogleList');
+        this.logger.debug('Toogling', toogleBtnElement);
+        if (toogleBtnElement.hasClass("expanded")) {
+            toogleBtnElement.removeClass("expanded");
+            toogleBtnElement.addClass("collapsed");
+            toogleBtnElement.parent().find(".list").first().css("display", "none");
+            toogleBtnElement.parent().find(".count").first().css("display", "inline");
+        } else {
+            toogleBtnElement.addClass("expanded");
+            toogleBtnElement.removeClass("collapsed");
+            toogleBtnElement.parent().find(".list").first().css("display", "block");
+            toogleBtnElement.parent().find(".count").first().css("display", "none");
+        }
+        if (toogleBtnElement.hasClass("empty")) {
+            toogleBtnElement.removeClass('empty');
+            image = this.getRootImage(toogleBtnElement.parent());
+            this.render(image, toogleBtnElement.parent().find('.list'));
+        }
+        this.logger.exit();
+    };
+    //</editor-fold>
+
+    //<editor-fold desc="Other">
+    /**
+     * Gets most top visible element and its offset from top of container defined in Viewer.controls.renderOutputElement
+     * @returns {{element: (jQuery), offset: number}}
+     */
+    Viewer.prototype.getElementInView = function () {
+        this.logger.enter('getElementInView');
+        var container = this.controls.renderOutputElement,
+            elements = this.valueElements,
+            offset = -Infinity,
+            index = 0;
+        while (offset < -1 && index < elements.length) {
+            offset = $(elements[index]).offset().top - container.offset().top;
+            index++;
+        }
+        this.logger.debug('referencing view to:', [elements[index - 1], offset]);
+        this.logger.exit();
+        return {element: $(elements[index - 1]), offset: offset};
+    };
+    /**
+     * Scrolls to element view.element and offsets by view.offset
+     * @param container {jQuery}
+     * @param view {object}
+     */
+    Viewer.prototype.recoverView = function (container, view) {
+        this.logger.enter('recoverView');
+        var offset = view.element.offset().top - container.offset().top;
+        container.scrollTop(container.scrollTop() + offset - view.offset);
+        this.logger.debug('restoring view to:', [view.element[0], offset]);
+        this.logger.exit();
+    };
+    /**
+     * Called once for each element.
+     * @callback eachElementCallback
+     * @param {jQuery} element
+     * @param {boolean} interrupt
+     * @param {number} index
+     * @param {number} length
+     */
+    /**
      * Iterate over elements with timeouts
      * @param elements {jQuery}
-     * @param timer
-     * @param callback {function(index, element)}
+     * @param timer {number}
+     * @param callback {eachElementCallback} function(index, element)
      * @param action {string} text for progressbar
      * @param index {number=} sets by iterating - do not set!
      * @param oneshot {boolean=} sets by iterating - do not set!
@@ -588,72 +613,52 @@ var Viewer = (function () {
         this.logger.exit();
     };
     /**
-     * Collapses JSON tree
+     * When function that needs to be interrupted after some time, it must set Viewer.timestamp to value provided
+     * by Date().getTime() function. If value in timestamp variable differs by defined value returns true. otherwise
+     * returns false.
+     * @param force {boolean} use to force interrupt
+     * @returns {boolean}
      */
-    Viewer.prototype.collapseAll = function () {
-        this.logger.enter('collapseAll');
-        var that = this,
-            elements = this.controls.renderOutputElement.find('.expanded');
-        this.eachElement(elements, this.timers.unused, function (element) {
-            that.toogleList($(element));
-        }, 'Collapsing JSON tree...');
+    Viewer.prototype.isTimeToInterrupt = function (force) {
+        var timenow = new Date().getTime(),
+            time = 100;
+
+        if (timenow > this.timestamp + time || force) {
+            this.logger.debug('isTimeToInterrupt: Interrupting!');
+            this.timestamp = timenow;
+            return true;
+        }
+        return false;
+    };
+    /**
+     * Cancel running action
+     * @param {Viewer.timers}
+     */
+    Viewer.prototype.cancelAction = function (timerId) {
+        this.logger.enter('cancelAction');
+        clearTimeout(this.timeoutId[timerId]);
+        this.logger.debug('Cleared Timeout ID', this.timeoutId[timerId]);
         this.logger.exit();
     };
     /**
-     * Expands JSON tree
+     * Progress handler
+     * @param action {string}
+     * @param done {number}
+     * @param total {number}
      */
-    Viewer.prototype.expandAll = function () {
-        this.logger.enter('expandAll');
-        var that = this,
-            elements;
-        this.maxcount = this.controls.renderMaxCount;
-        this.controls.renderMaxCount = Infinity;
-        this.valueCount = 0;
-        this.imageValueCount = 0;
-        this.multiroute = [];
-        elements = this.controls.renderOutputElement.find('.empty');
-        elements.each(function (index, element) {
-            var image = that.getRootImage($(element).parent());
-            that.multiroute.push({actual: image, index: 1, tag: $(element).parent().find('.list')});
-            $(element).removeClass('empty');
-            that.toogleList($(element));
-            that.imageValueCount += that.getValueCount(image);
-        });
-        this.route = this.multiroute;
-        this.render('', '', true, function () {
-            that.controls.renderMaxCount = that.maxcount;
-            elements = that.controls.renderOutputElement.find('.collapsed:not(.empty)');
-            that.eachElement(elements, that.timers.unused, function (element) {
-                that.toogleList($(element));
-            }, 'Expanding JSON tree...');
-        });
-        this.logger.exit();
-    };
-    /**
-     * Toogles expanded/collapsed view in json tree
-     * @param toogleBtnElement {jQuery}
-     */
-    Viewer.prototype.toogleList = function (toogleBtnElement) {
-        var image;
-        this.logger.enter('toogleList');
-        this.logger.debug('Toogling', toogleBtnElement);
-        if (toogleBtnElement.hasClass("expanded")) {
-            toogleBtnElement.removeClass("expanded");
-            toogleBtnElement.addClass("collapsed");
-            toogleBtnElement.parent().find(".list").first().css("display", "none");
-            toogleBtnElement.parent().find(".count").first().css("display", "inline");
+    Viewer.prototype.progress = function (action, done, total) {
+        var percent,
+            progressbar = this.controls.progressbarElement;
+        if (!action) {
+            percent = 100;
         } else {
-            toogleBtnElement.addClass("expanded");
-            toogleBtnElement.removeClass("collapsed");
-            toogleBtnElement.parent().find(".list").first().css("display", "block");
-            toogleBtnElement.parent().find(".count").first().css("display", "none");
+            percent = Math.round((done / total) * 100);
         }
-        if (toogleBtnElement.hasClass("empty")) {
-            toogleBtnElement.removeClass('empty');
-            image = this.getRootImage(toogleBtnElement.parent());
-            this.render(image, toogleBtnElement.parent().find('.list'));
-        }
-        this.logger.exit();
+        this.logger.debug("Progressbar:", [done, total]);
+        this.progressbarAction = action;
+        progressbar.stop(true, true);
+        progressbar.css("display", "block");
+        progressbar.progressbar("value", percent);
     };
     /**
      * Gets sub-jsonImage for on-demand rendering of json tree
@@ -681,7 +686,7 @@ var Viewer = (function () {
     };
     /**
      * Counts values that needs to be rendered if value count of jsonImage exceeds Viewer.controls.renderMaxCount
-     * @param jsonImage
+     * @param {jsonImage} jsonImage
      * @returns {number}
      */
     Viewer.prototype.getValueCount = function (jsonImage) {
@@ -693,7 +698,6 @@ var Viewer = (function () {
             route;
         this.route = [];
         this.route.push({actual: jsonImage, index: 1, tag: ""});
-
         while (this.route.length) {
             route = this.getRoute();
             i = route.index;
@@ -718,18 +722,43 @@ var Viewer = (function () {
         return total;
     };
     /**
-     * Cancel running action
-     * @param action {string} "render" | "showTypes" | "showIndex"
+     * Gets last index of Viewer.route[] routing stack
+     * @returns
+     * actual: reference to jsonImage (sub)object, index: number , tag: (jQuery)
+     * before: reference to previous jsonImage (sub)object, indexbefore: number
      */
-    Viewer.prototype.cancelAction = function (timerId) {
-        this.logger.enter('cancelAction');
-        clearTimeout(this.timeoutId[timerId]);
-        this.logger.debug('Cleared Timeout ID', this.timeoutId[timerId]);
+    Viewer.prototype.getRoute = function () {
+        this.logger.enter('getRoute');
+        var actual,
+            index,
+            before,
+            indexbefore,
+            route;
+        if (this.route.length >= 2) {
+            before = this.route[this.route.length - 2].actual;
+            indexbefore = this.route[this.route.length - 2].index;
+        } else {
+            //If we are rendering 1st level of jsonImage there is no before so here are some random numbers
+            indexbefore = Infinity;
+            before = [];
+        }
+        actual = this.route[this.route.length - 1].actual;
+        index = this.route[this.route.length - 1].index;
+        route = {
+            type: actual[0],
+            actual: actual,
+            index: index,
+            tag: this.route[this.route.length - 1].tag,
+            before: before,
+            indexbefore: indexbefore
+        };
+        this.logger.debug('Route:', route);
         this.logger.exit();
+        return route;
     };
     /**
      * Gets type of variable
-     * @param value
+     * @param {*} value
      * @returns {string} "array" for arrays "null" for null
      */
     Viewer.prototype.typeOf = function (value) {
@@ -744,5 +773,7 @@ var Viewer = (function () {
         }
         return "object";
     };
+    //</editor-fold>
     return Viewer;
 }());
+

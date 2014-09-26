@@ -89,8 +89,7 @@ ODT.Logger = (function () {
     /**
      * Logs a message.
      * @param {Logger.Level} level
-     * @param {string} msg
-     * @param {Array=} context
+     * @param {*} args arguments
      */
     Logger.prototype.log = function (level, args) {
         var i,
@@ -108,36 +107,32 @@ ODT.Logger = (function () {
 
     /**
      * Log a TRACE level message.
-     * @param {string} msg
-     * @param {Array=} context
+     @param {...*} message
      */
-    Logger.prototype.debug = function () {
+    Logger.prototype.debug = function (message) {
         this.log(Logger.Level.DEBUG, arguments);
     };
 
     /**
-     * Log a INFO level message.
-     * @param {string} msg
+     @param {...*} message
      */
-    Logger.prototype.info = function () {
+    Logger.prototype.info = function (message) {
         this.log(Logger.Level.INFO, arguments);
     };
 
     /**
      * Log a WARNING level message.
-     * @param {string} msg
-     * @param {Array=} context
+     @param {...*} message
      */
-    Logger.prototype.warn = function () {
+    Logger.prototype.warn = function (message) {
         this.log(Logger.Level.WARN, arguments);
     };
 
     /**
      * Log a ERROR level message.
-     * @param {string} msg
-     * @param {Array=} context
+     @param {...*} message
      */
-    Logger.prototype.error = function () {
+    Logger.prototype.error = function (message) {
         this.log(Logger.Level.ERROR, arguments);
     };
 
@@ -149,7 +144,7 @@ ODT.Logger = (function () {
      * @param {Logger.Level} level
      * @return
      */
-    Logger.prototype.getStyles = function (level) {
+    Logger.prototype.getStyles = function () {
     };
 
     /**
